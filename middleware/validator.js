@@ -4,9 +4,10 @@ exports.signupRules = () => [
   check("name", "name is required").notEmpty(),
   check("lastname", "lastname is required").notEmpty(),
   check("email", "name is required").notEmpty(),
+  check("phonenumber", "phonenumber is required").notEmpty(),
   check("email", "check email again").isEmail(),
-  check("password", "password is required").isLength({
-    min: 6,
+  check("password must be between 8 character and 20 character").isLength({
+    min: 8,
     max: 20,
   }),
 ];
@@ -16,9 +17,9 @@ exports.loginRules = () => [
   check("email", "check email again").isEmail(),
   check(
     "password",
-    "password must be between 6 character and 20 character"
+    "password incorrect"
   ).isLength({
-    min: 6,
+    min: 8,
     max: 20,
   }),
 ];
