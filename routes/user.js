@@ -1,66 +1,81 @@
-const express= require("express");
-const bcrypt= require("bcrypt");
-const jwt= require("jsonwebtoken");
-const Router=express.Router();
-const User= require("../models/user");
-const isAuth= require("../middleware/passport");
-const {signupRules, loginRules, validation} = require("../middleware/validator");
+/** @format */
 
+const express = require("express");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const Router = express.Router();
+const User = require("../models/user");
+const isAuth = require("../middleware/passport");
+const {
+  signupRules,
+  loginRules,
+  validation,
+} = require("../middleware/validator");
 
 //signup
-Router.post("/signup",signupRules() ,validation,  async (req, res) => {
-    const {name, lastname, email, password, phonenumber} = req.body;
-    try {
-        const NewUser= new User(req.body);
-        //check if user already exists
-        const userExists= await User.findOne({email});
-        if(userExists){
-            return res.status(400).send({msg: "user already exists with this email"});
-        }
-        
-        //hash password
-        const salt=10;
-        const genSalt=await bcrypt.genSalt(salt);
-        const hashPwd=await bcrypt.hash(password, genSalt);
-        NewUser.password=hashPwd;
+Router.post("/signup", signupRules(), validation, async (req, res) => {
+  const { name, lastname, email, password, phonenumber } = req.body;
+  try {
+    const NewUser = new User(req.body);
+    //check if user already exists
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      return res
+        .status(400)
+        .send({ msg: "user already exists with this email" });
+    }
 
-        //generate token
-        const newUserToken= await NewUser.save();
-        const payload = {_id: newUserToken._id, name: newUserToken.name };
-        const token = await jwt.sign(payload, process.env.SECRET_KEY);
+    //hash password
+    const salt = 10;
+    const genSalt = await bcrypt.genSalt(salt);
+    const hashPwd = await bcrypt.hash(password, genSalt);
+    NewUser.password = hashPwd;
 
-        //save user
-        res.status(200).send({newUserToken,token, msg: "user saved successfully"});
-    } catch (error) {
-        res.status(400).send({error, msg: "error in signup"});
-    } 
-})
+    //generate token
+    const newUserToken = await NewUser.save();
+    const payload = { _id: newUserToken._id, name: newUserToken.name };
+    const token = await jwt.sign(payload, process.env.SECRET_KEY);
+
+    //save user
+    res
+      .status(200)
+      .send({ newUserToken, token, msg: "user saved successfully" });
+  } catch (error) {
+    res.status(400).send({ error, msg: "error in signup" });
+  }
+});
 
 //login
-Router.post("/login",loginRules() ,validation, async (req, res) => {
-    const {email, password} = req.body;
-    try {
-        //check if user exists
-        const userExists= await User.findOne({email});
-        if(!userExists){
-            return res.status(400).send({msg: "user does not exist"});
-        }
-        //check password
-        const isMatch=await bcrypt.compare(password, userExists.password);
-        if(!isMatch){
-            return res.status(400).send({msg: "incorrect password"});
-        }
-        
-        //generate token
-        const payload = {_id: userExists._id};
-        const token = await jwt.sign(payload, process.env.SECRET_KEY);
-
-        //get user
-        res.status(200).send({userExists, msg: "user logged in successfully",token: `Bearer ${token}`});
-    } catch (error) {
-        res.status(400).send({error, msg: "error in login"});
+Router.post("/login", loginRules(), validation, async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    //check if user exists
+    const userExists = await User.findOne({ email });
+    if (!userExists) {
+      return res.status(400).send({ msg: "user does not exist" });
     }
-})
+    //check password
+    const isMatch = await bcrypt.compare(password, userExists.password);
+    if (!isMatch) {
+      return res.status(400).send({ msg: "incorrect password" });
+    }
+
+    //generate token
+    const payload = { _id: userExists._id };
+    const token = await jwt.sign(payload, process.env.SECRET_KEY);
+
+    //get user
+    res
+      .status(200)
+      .send({
+        userExists,
+        msg: "user logged in successfully",
+        token: `Bearer ${token}`,
+      });
+  } catch (error) {
+    res.status(400).send({ error, msg: "error in login" });
+  }
+});
 
 //get current user
 userRouter.get("/current", isAuth(), (req, res) => {
