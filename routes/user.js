@@ -39,7 +39,7 @@ Router.post("/signup", signupRules(), validation, async (req, res) => {
     //save user
     res
       .status(200)
-      .send({ newUserToken, token, msg: "user saved successfully" });
+      .send({ newUserToken, token: `Bearer ${token}`, msg: "user saved successfully" });
   } catch (error) {
     res.status(400).send({ error, msg: "error in signup" });
   }
@@ -78,12 +78,12 @@ Router.post("/login", loginRules(), validation, async (req, res) => {
 });
 
 //get current user
-userRouter.get("/current", isAuth(), (req, res) => {
+Router.get("/current", isAuth(), (req, res) => {
   res.status(200).send({ user: req.user });
 });
 
 // get all users
-userRouter.get("/", async (req, res) => {
+Router.get("/", async (req, res) => {
   try {
     let result = await User.find();
     res.send({ users: result, msg: "all Users" });
@@ -93,7 +93,7 @@ userRouter.get("/", async (req, res) => {
 });
 
 //delete user
-userRouter.delete("/:id", async (req, res) => {
+Router.delete("/:id", async (req, res) => {
   try {
     let result = await User.findByIdAndDelete(req.params.id);
     res.send({ msg: "user is deleted" });
@@ -103,7 +103,7 @@ userRouter.delete("/:id", async (req, res) => {
 });
 
 // update profil
-userRouter.put("/:id", async (req, res) => {
+Router.put("/:id", async (req, res) => {
   try {
     const { password, ...otherUpdates } = req.body;
 

@@ -6,7 +6,7 @@ exports.signupRules = () => [
   check("email", "name is required").notEmpty(),
   check("phonenumber", "phonenumber is required").notEmpty(),
   check("email", "check email again").isEmail(),
-  check("password must be between 8 character and 20 character").isLength({
+  check("password","password must be between 8 character and 20 character").isLength({
     min: 8,
     max: 20,
   }),

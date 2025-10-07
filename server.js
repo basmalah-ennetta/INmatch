@@ -6,6 +6,10 @@ require ("dotenv").config();
 //middleware
 app.use(express.json());
 app.use(cors());
+const passport = require("passport");
+require("./middleware/passport");
+app.use(passport.initialize());
+
 
 const userRoute= require("./routes/user");
 const connectDB= require("./connect_db");
