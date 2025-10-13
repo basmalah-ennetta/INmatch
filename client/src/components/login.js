@@ -1,18 +1,32 @@
 /** @format */
 
 import React, { useState } from "react";
+import { loginUser } from "../redux/userSlice";
+import { useDispatch } from "react-redux";
+import { useNavigate, Link } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
-import { Link } from "react-router-dom";
 
 export default function Login() {
+  const [login, setlogin] = useState({ email: "", password: "" });
+   const [errorMsg, setErrorMsg] = useState(""); // ✅ new state
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
   const [passwordVisible, setPasswordVisible] = useState(false);
 
   const togglePassword = () => setPasswordVisible(!passwordVisible);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    alert("Logged in successfully!");
+    setErrorMsg(""); // clear old error
+
+    const resultAction = await dispatch(loginUser(login));
+
+    if (loginUser.fulfilled.match(resultAction)) {
+      navigate("/about");
+    } else {
+      setErrorMsg(resultAction.payload || "Login failed");
+    }
   };
 
   return (
@@ -61,6 +75,7 @@ export default function Login() {
                 type="email"
                 required
                 placeholder="you@example.com"
+                onChange={(e) => setlogin({ ...login, email: e.target.value })}
                 className="w-full rounded-xl bg-white/5 border border-gray-500 px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition duration-300 hover:border-indigo-300 shadow-md"
               />
             </div>
@@ -86,6 +101,9 @@ export default function Login() {
                   id="password"
                   type={passwordVisible ? "text" : "password"}
                   required
+                  onChange={(e) =>
+                    setlogin({ ...login, password: e.target.value })
+                  }
                   placeholder="••••••••"
                   className="w-full rounded-xl bg-white/5 border border-gray-500 px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition duration-300 hover:border-indigo-300 shadow-md pr-12"
                 />
@@ -94,10 +112,23 @@ export default function Login() {
                   onClick={togglePassword}
                   className="absolute right-3 text-gray-400 hover:text-indigo-300 transition flex items-center justify-center h-full"
                 >
-                  {passwordVisible ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
+                  {passwordVisible ? (
+                    <FaEyeSlash size={18} />
+                  ) : (
+                    <FaEye size={18} />
+                  )}
                 </button>
               </div>
             </div>
+            {/* ✅ Error Message */}
+            {errorMsg && (
+              <div className="text-red-400 text-sm text-center font-medium mt-2">
+                {errorMsg === "user does not exist"
+                  ? "No account with this email — sign up instead."
+                  : errorMsg}
+              </div>
+            )}
+
 
             {/* Submit Button */}
             <button
