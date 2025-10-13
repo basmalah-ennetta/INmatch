@@ -102,28 +102,27 @@ Router.delete("/:id", async (req, res) => {
   }
 });
 
-// update profil
+// update profile
 Router.put("/:id", async (req, res) => {
   try {
-    const { password, ...otherUpdates } = req.body;
+    const { password, ...updates } = req.body;
 
-    // Hash password if it's provided
     if (password) {
       const salt = await bcrypt.genSalt(10);
-      otherUpdates.password = await bcrypt.hash(password, salt);
+      updates.password = await bcrypt.hash(password, salt);
     }
 
-    let result = await User.findByIdAndUpdate(
+    const updatedUser = await User.findByIdAndUpdate(
       req.params.id,
-      { $set: otherUpdates },
+      { $set: updates },
       { new: true }
     );
 
-    if (!result) {
+    if (!updatedUser) {
       return res.status(404).send({ msg: "User not found" });
     }
 
-    res.send({ msg: "User is updated", user: result });
+    res.status(200).send({ msg: "User is updated", user: updatedUser });
   } catch (error) {
     res.status(500).send({ error: error.message });
   }

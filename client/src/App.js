@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Login from "./components/login";
 import Signup from "./components/signup";
 import About from "./components/About";
+import Profile from "./components/Profile";
 import Footer from "./components/Footer";
 import { useDispatch, useSelector } from "react-redux";
 import { useEffect, useState } from "react";
@@ -28,6 +29,8 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         {/* About page */}
         <Route path="/about" element={<About />} />
+        {/* Profile page */}
+        <Route path="/profile" element={<Profile />} />
       </Routes>
       <Footer />
     </div>

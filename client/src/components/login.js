@@ -9,7 +9,7 @@ import { FaEye, FaEyeSlash } from "react-icons/fa";
 
 export default function Login() {
   const [login, setlogin] = useState({ email: "", password: "" });
-   const [errorMsg, setErrorMsg] = useState(""); // ✅ new state
+   const [errorMsg, setErrorMsg] = useState(""); 
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [passwordVisible, setPasswordVisible] = useState(false);
@@ -23,7 +23,7 @@ export default function Login() {
     const resultAction = await dispatch(loginUser(login));
 
     if (loginUser.fulfilled.match(resultAction)) {
-      navigate("/about");
+      navigate("/profile");
     } else {
       setErrorMsg(resultAction.payload || "Login failed");
     }
