@@ -2,8 +2,28 @@
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import axios from "axios";
-import { updateUser, getCurrentUser } from "../redux/userSlice"; // Make sure you have an action for updating Redux state
-import { FaLinkedin, FaGlobe, FaGithub, FaFileAlt } from "react-icons/fa";
+import {
+  updateUser,
+  getCurrentUser,
+  addEducation,
+  addProject,
+  addOffer,
+  updateEducation,
+  updateProject,
+  updateOffer,
+  deleteEducation,
+  deleteProject,
+  deleteOffer,
+} from "../redux/userSlice";
+import {
+  FaLinkedin,
+  FaGlobe,
+  FaGithub,
+  FaFileAlt,
+  FaTrash,
+  FaEdit,
+  FaSave,
+} from "react-icons/fa";
 import ProjectCard from "./ProjectCard";
 import InternshipOfferCard from "./OfferCard";
 
@@ -27,18 +47,30 @@ export default function Profile() {
   const [profilePic, setProfilePic] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // local editable arrays + edit-mode trackers
   const [projects, setProjects] = useState([]);
   const [offers, setOffers] = useState([]);
   const [education, setEducation] = useState([]);
 
+  // each map holds ids currently being edited
+  const [editingProjects, setEditingProjects] = useState({});
+  const [editingOffers, setEditingOffers] = useState({});
+  const [editingEducation, setEditingEducation] = useState({});
+
   useEffect(() => {
+    // Fetch current user (and populate local arrays)
     const fetchCurrentUser = async () => {
       try {
         const token = localStorage.getItem("token");
         const res = await axios.get("http://localhost:5000/user/current", {
           headers: { Authorization: token },
         });
-        setFormData(res.data.user); // replace your local form state
+        const u = res.data.user;
+        setFormData((prev) => ({ ...prev, ...u }));
+        setProjects(u.projects || []);
+        setOffers(u.offers || []);
+        setEducation(u.education || []);
       } catch (err) {
         console.error("Error fetching current user:", err);
       }
@@ -46,6 +78,16 @@ export default function Profile() {
 
     fetchCurrentUser();
   }, []);
+
+  // keep formData in sync if the global user changes
+  useEffect(() => {
+    if (user) {
+      setFormData((prev) => ({ ...prev, ...user }));
+      setProjects(user.projects || []);
+      setOffers(user.offers || []);
+      setEducation(user.education || []);
+    }
+  }, [user]);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -65,6 +107,13 @@ export default function Profile() {
       );
       if (updateUser.fulfilled.match(resultAction)) {
         setIsEditing(false);
+        // refresh local arrays from returned user if present
+        if (resultAction.payload?.projects)
+          setProjects(resultAction.payload.projects);
+        if (resultAction.payload?.offers)
+          setOffers(resultAction.payload.offers);
+        if (resultAction.payload?.education)
+          setEducation(resultAction.payload.education);
       } else {
         alert("Failed to save changes.");
       }
@@ -73,25 +122,150 @@ export default function Profile() {
     }
   };
 
-  const handleAddProject = () => {
-    setProjects([
-      ...projects,
-      { name: "", description: "", image: "", liveDemo: "" },
-    ]);
+  // ===== ADD =====
+  const handleAddProject = async () => {
+    const newProject = { title: "", image: "", description: "", liveDemo: "" };
+    const res = await dispatch(
+      addProject({ id: user._id, project: newProject })
+    );
+    if (addProject.fulfilled.match(res)) {
+      // update local projects array from payload.user if present
+      const updatedUser = res.payload;
+      if (updatedUser?.projects) {
+        setProjects(updatedUser.projects);
+      } else {
+        // fallback: push the returned project (if API returns it)
+        setProjects((prev) => [...prev, { ...newProject }]);
+      }
+    }
   };
 
-  const handleAddOffer = () => {
-    setOffers([
-      ...offers,
-      { title: "", company: "", location: "", description: "" },
-    ]);
+  const handleAddOffer = async () => {
+    const newOffer = {
+      title: "",
+      company: "",
+      location: "",
+      tags: {},
+      payment: "",
+      description: "",
+    };
+    const res = await dispatch(addOffer({ id: user._id, offer: newOffer }));
+    if (addOffer.fulfilled.match(res)) {
+      const updatedUser = res.payload;
+      if (updatedUser?.offers) setOffers(updatedUser.offers);
+      else setOffers((prev) => [...prev, { ...newOffer }]);
+    }
   };
 
-  const handleAddEducation = () => {
-    setEducation([
-      ...education,
-      { diploma: "", university: "", address: "", date: "" },
-    ]);
+  const handleAddEducation = async () => {
+    const newEdu = { diploma: "", university: "", location: "", date: "" };
+    const res = await dispatch(
+      addEducation({ id: user._id, education: newEdu })
+    );
+    if (addEducation.fulfilled.match(res)) {
+      const updatedUser = res.payload;
+      if (updatedUser?.education) setEducation(updatedUser.education);
+      else setEducation((prev) => [...prev, { ...newEdu }]);
+    }
+  };
+
+  // ===== EDIT MODE HELPERS (toggle / change local arrays) =====
+  const toggleEditProject = (id) => {
+    setEditingProjects((s) => ({ ...s, [id]: !s[id] }));
+  };
+  const toggleEditOffer = (id) => {
+    setEditingOffers((s) => ({ ...s, [id]: !s[id] }));
+  };
+  const toggleEditEducation = (id) => {
+    setEditingEducation((s) => ({ ...s, [id]: !s[id] }));
+  };
+
+  const changeProjectField = (id, field, value) => {
+    setProjects((prev) =>
+      prev.map((p) => (p._id === id ? { ...p, [field]: value } : p))
+    );
+  };
+  const changeOfferField = (id, field, value) => {
+    setOffers((prev) =>
+      prev.map((o) => (o._id === id ? { ...o, [field]: value } : o))
+    );
+  };
+  const changeEducationField = (id, field, value) => {
+    setEducation((prev) =>
+      prev.map((e) => (e._id === id ? { ...e, [field]: value } : e))
+    );
+  };
+
+  // ===== UPDATE (save a single item) =====
+  const handleUpdateProject = async (proj) => {
+    const res = await dispatch(
+      updateProject({ id: user._id, projId: proj._id, updates: proj })
+    );
+    if (updateProject.fulfilled.match(res)) {
+      // use payload user if provided to refresh
+      if (res.payload?.projects) setProjects(res.payload.projects);
+      toggleEditProject(proj._id);
+    } else {
+      alert("Failed to update project");
+    }
+  };
+
+  const handleUpdateOffer = async (offer) => {
+    const res = await dispatch(
+      updateOffer({ id: user._id, offerId: offer._id, updates: offer })
+    );
+    if (updateOffer.fulfilled.match(res)) {
+      if (res.payload?.offers) setOffers(res.payload.offers);
+      toggleEditOffer(offer._id);
+    } else {
+      alert("Failed to update offer");
+    }
+  };
+
+  const handleUpdateEducation = async (edu) => {
+    const res = await dispatch(
+      updateEducation({ id: user._id, eduId: edu._id, updates: edu })
+    );
+    if (updateEducation.fulfilled.match(res)) {
+      if (res.payload?.education) setEducation(res.payload.education);
+      toggleEditEducation(edu._id);
+    } else {
+      alert("Failed to update education");
+    }
+  };
+
+  // ===== DELETE =====
+  const handleDeleteProject = async (projId) => {
+    const res = await dispatch(deleteProject({ id: user._id, projId }));
+    if (deleteProject.fulfilled.match(res)) {
+      if (res.payload?.projects) {
+        setProjects(res.payload.projects);
+      } else {
+        setProjects((prev) => prev.filter((p) => p._id !== projId));
+      }
+    } else {
+      alert("Failed to delete project");
+    }
+  };
+
+  const handleDeleteOffer = async (offerId) => {
+    const res = await dispatch(deleteOffer({ id: user._id, offerId }));
+    if (deleteOffer.fulfilled.match(res)) {
+      if (res.payload?.offers) setOffers(res.payload.offers);
+      else setOffers((prev) => prev.filter((o) => o._id !== offerId));
+    } else {
+      alert("Failed to delete offer");
+    }
+  };
+
+  const handleDeleteEducation = async (eduId) => {
+    const res = await dispatch(deleteEducation({ id: user._id, eduId }));
+    if (deleteEducation.fulfilled.match(res)) {
+      if (res.payload?.education) setEducation(res.payload.education);
+      else setEducation((prev) => prev.filter((e) => e._id !== eduId));
+    } else {
+      alert("Failed to delete education");
+    }
   };
 
   return (
@@ -106,11 +280,14 @@ export default function Profile() {
           <button className="hover:bg-indigo-700 p-2 rounded-lg text-left">
             {user?.role === "intern" ? "Projects" : "Internship Offers"}
           </button>
-          {user?.role === "intern" && (
-            <button className="hover:bg-indigo-700 p-2 rounded-lg text-left">
-              Education
-            </button>
-          )}
+          <button
+            onClick={() => (window.location.href = "/applications")}
+            className="hover:bg-indigo-700 p-2 rounded-lg text-left"
+          >
+            {user?.role === "intern"
+              ? "My Applications"
+              : "Applications Received"}
+          </button>
         </nav>
       </div>
 
@@ -231,8 +408,195 @@ export default function Profile() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {user?.role === "intern"
-              ? projects.map((p, i) => <ProjectCard key={i} project={p} />)
-              : offers.map((o, i) => <InternshipOfferCard key={i} offer={o} />)}
+              ? projects.map((p) => (
+                  <div
+                    key={p._id || Math.random()}
+                    className="relative border rounded-lg p-3 bg-white"
+                  >
+                    {/* Inline editable fields: title + description + liveDemo */}
+                    <div className="mb-2">
+                      {editingProjects[p._id] ? (
+                        <input
+                          className="w-full border-b outline-none mb-2"
+                          value={p.title || p.name || ""}
+                          onChange={(e) =>
+                            changeProjectField(p._id, "title", e.target.value)
+                          }
+                          placeholder="Project title"
+                        />
+                      ) : (
+                        <h4 className="font-semibold">{p.title || p.name}</h4>
+                      )}
+                      {editingProjects[p._id] ? (
+                        <textarea
+                          className="w-full rounded p-2"
+                          value={p.description || ""}
+                          onChange={(e) =>
+                            changeProjectField(
+                              p._id,
+                              "description",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Description"
+                        />
+                      ) : (
+                        <p className="text-sm text-gray-700">{p.description}</p>
+                      )}
+                      {editingProjects[p._id] ? (
+                        <input
+                          className="w-full border-b outline-none mt-2"
+                          value={p.liveDemo || ""}
+                          onChange={(e) =>
+                            changeProjectField(
+                              p._id,
+                              "liveDemo",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Live demo URL"
+                        />
+                      ) : (
+                        p.liveDemo && (
+                          <a
+                            href={p.liveDemo}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-sm text-indigo-600 hover:underline"
+                          >
+                            Live demo
+                          </a>
+                        )
+                      )}
+                    </div>
+
+                    {/* Original ProjectCard for styling consistency (non-edit view) */}
+                    {!editingProjects[p._id] && <ProjectCard project={p} />}
+
+                    <div className="absolute top-2 right-2 flex gap-2">
+                      {editingProjects[p._id] ? (
+                        <>
+                          <button
+                            onClick={() => handleUpdateProject(p)}
+                            className="text-green-600 hover:text-green-800"
+                          >
+                            <FaSave />
+                          </button>
+                          <button
+                            onClick={() => toggleEditProject(p._id)}
+                            className="text-gray-600 hover:text-gray-800"
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => toggleEditProject(p._id)}
+                            className="text-blue-600 hover:text-blue-800"
+                          >
+                            <FaEdit />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteProject(p._id)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <FaTrash />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))
+              : offers.map((o) => (
+                  <div
+                    key={o._id || Math.random()}
+                    className="relative border rounded-lg p-3 bg-white"
+                  >
+                    <div className="mb-2">
+                      {editingOffers[o._id] ? (
+                        <input
+                          className="w-full border-b outline-none mb-2"
+                          value={o.title || ""}
+                          onChange={(e) =>
+                            changeOfferField(o._id, "title", e.target.value)
+                          }
+                          placeholder="Offer title"
+                        />
+                      ) : (
+                        <h4 className="font-semibold">{o.title}</h4>
+                      )}
+
+                      {editingOffers[o._id] ? (
+                        <input
+                          className="w-full border-b outline-none mb-2"
+                          value={o.location || ""}
+                          onChange={(e) =>
+                            changeOfferField(o._id, "location", e.target.value)
+                          }
+                          placeholder="Location"
+                        />
+                      ) : (
+                        o.location && (
+                          <p className="text-sm text-gray-700">{o.location}</p>
+                        )
+                      )}
+
+                      {editingOffers[o._id] ? (
+                        <textarea
+                          className="w-full rounded p-2"
+                          value={o.description || ""}
+                          onChange={(e) =>
+                            changeOfferField(
+                              o._id,
+                              "description",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Description"
+                        />
+                      ) : (
+                        <p className="text-sm text-gray-700">{o.description}</p>
+                      )}
+                    </div>
+
+                    {!editingOffers[o._id] && <InternshipOfferCard offer={o} />}
+
+                    <div className="absolute top-2 right-2 flex gap-2">
+                      {editingOffers[o._id] ? (
+                        <>
+                          <button
+                            onClick={() => handleUpdateOffer(o)}
+                            className="text-green-600 hover:text-green-800"
+                          >
+                            <FaSave />
+                          </button>
+                          <button
+                            onClick={() => toggleEditOffer(o._id)}
+                            className="text-gray-600 hover:text-gray-800"
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => toggleEditOffer(o._id)}
+                            className="text-blue-600 hover:text-blue-800"
+                          >
+                            <FaEdit />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteOffer(o._id)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <FaTrash />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
           </div>
         </div>
 
@@ -249,15 +613,102 @@ export default function Profile() {
               </button>
             </div>
             <div className="space-y-3">
-              {education.map((ed, i) => (
+              {education.map((ed) => (
                 <div
-                  key={i}
-                  className="border border-gray-200 p-3 rounded-lg text-sm"
+                  key={ed._id || Math.random()}
+                  className="border border-gray-200 p-3 rounded-lg text-sm relative bg-white"
                 >
-                  <p className="font-semibold">{ed.diploma}</p>
-                  <p>{ed.university}</p>
-                  <p>{ed.address}</p>
-                  <p>{ed.date}</p>
+                  <div>
+                    {editingEducation[ed._id] ? (
+                      <>
+                        <input
+                          className="w-full border-b mb-2 outline-none"
+                          value={ed.diploma || ""}
+                          onChange={(e) =>
+                            changeEducationField(
+                              ed._id,
+                              "diploma",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Diploma"
+                        />
+                        <input
+                          className="w-full border-b mb-2 outline-none"
+                          value={ed.university || ""}
+                          onChange={(e) =>
+                            changeEducationField(
+                              ed._id,
+                              "university",
+                              e.target.value
+                            )
+                          }
+                          placeholder="University"
+                        />
+                        <input
+                          className="w-full border-b mb-2 outline-none"
+                          value={ed.location || ""}
+                          onChange={(e) =>
+                            changeEducationField(
+                              ed._id,
+                              "location",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Location"
+                        />
+                        <input
+                          className="w-full border-b mb-2 outline-none"
+                          value={ed.date || ""}
+                          onChange={(e) =>
+                            changeEducationField(ed._id, "date", e.target.value)
+                          }
+                          placeholder="Date"
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-semibold">{ed.diploma}</p>
+                        <p>{ed.university}</p>
+                        <p>{ed.location}</p>
+                        <p>{ed.date}</p>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="absolute top-2 right-2 flex gap-2">
+                    {editingEducation[ed._id] ? (
+                      <>
+                        <button
+                          onClick={() => handleUpdateEducation(ed)}
+                          className="text-green-600 hover:text-green-800"
+                        >
+                          <FaSave />
+                        </button>
+                        <button
+                          onClick={() => toggleEditEducation(ed._id)}
+                          className="text-gray-600 hover:text-gray-800"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => toggleEditEducation(ed._id)}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          <FaEdit />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteEducation(ed._id)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <FaTrash />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -268,7 +719,7 @@ export default function Profile() {
       {/* ==== Right Section ==== */}
       <div className="w-1/5 bg-indigo-50 p-6 flex flex-col gap-6">
         <div>
-          <h4 className="font-semibold mb-2">Social Links</h4>
+          <h4 className="font-semibold mb-2">Links</h4>
           <div className="flex flex-col gap-2">
             {["linkedin", "website", "github", "resume"].map(
               (field) =>
@@ -292,7 +743,7 @@ export default function Profile() {
                     {isEditing ? (
                       <input
                         name={field}
-                        value={formData[field]}
+                        value={formData[field] || ""}
                         onChange={handleChange}
                         className="outline-none border-b border-indigo-400 bg-transparent text-sm flex-1"
                         placeholder={
@@ -320,7 +771,7 @@ export default function Profile() {
           {isEditing ? (
             <textarea
               name="description"
-              value={formData.description}
+              value={formData.description || ""}
               onChange={handleChange}
               className="w-full border border-indigo-300 rounded-lg p-2 text-sm"
               rows={4}
@@ -338,7 +789,7 @@ export default function Profile() {
             {isEditing ? (
               <input
                 name="skills"
-                value={formData.skills.join(", ")}
+                value={(formData.skills || []).join(", ")}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
@@ -350,7 +801,7 @@ export default function Profile() {
               />
             ) : (
               <div className="flex flex-wrap gap-2">
-                {formData.skills.map((s, i) => (
+                {(formData.skills || []).map((s, i) => (
                   <span
                     key={i}
                     className="bg-indigo-200 text-indigo-800 px-2 py-1 rounded-full text-xs"

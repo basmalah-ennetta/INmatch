@@ -1,41 +1,33 @@
 const mongoose = require("mongoose");
-const schema = mongoose.Schema;
+const { Schema } = mongoose;
 
-const UserSchema = new schema({
+const projectSchema = new Schema({
+  title: String,
+  image: String,
+  description: String,
+  liveDemo: String,
+});
+
+const educationSchema = new Schema({
+  diploma: String,
+  university: String,
+  location: String,
+  date: String,
+});
+
+const userSchema = new Schema({
   name: { type: String, required: true },
   lastname: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   phonenumber: { type: String, required: true },
-  isAdmin: { type: Boolean, default: false },
-  role: {
-    type: String,
-    enum: ["entreprise", "admin", "intern"],
-    default: "intern",
-  },
-
-  // New optional fields for profile
-  address: { type: String },
-  linkedin: { type: String },
-  website: { type: String },
-  github: { type: String },
-  resume: { type: String },
-  description: { type: String },
-
-  // Intern-specific
-  education: [
-    {
-      diploma: String,
-      university: String,
-      address: String,
-      date: String,
-    },
-  ],
+  role: { type: String, enum: ["intern", "entreprise", "admin"], default: "intern" },
+  projects: [projectSchema],
+  education: [educationSchema],
   skills: [{ type: String }],
-
-  // Entreprise-specific
-  industry: { type: String },
-  websiteEntreprise: { type: String },
+  description: String,
+  appliedOffers: [{ type: mongoose.Schema.Types.ObjectId, ref: "offer" }],
+  offers: [{ type: mongoose.Schema.Types.ObjectId, ref: "offer" }],
 });
 
-module.exports = mongoose.model("user", UserSchema);
+module.exports = mongoose.model("user", userSchema);

@@ -2,7 +2,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 
-// ✅ Set your backend base URL
+// backend base URL
 const API_URL = "http://localhost:5000/user"; // adjust if needed
 
 // ======= ASYNC THUNKS =======
@@ -88,6 +88,150 @@ export const deleteUser = createAsyncThunk(
       return id;
     } catch (error) {
       return rejectWithValue(error.response?.data?.msg || "Delete failed");
+    }
+  }
+);
+
+// ADD Education
+export const addEducation = createAsyncThunk(
+  "user/addEducation",
+  async ({ id, education }, { rejectWithValue }) => {
+    try {
+      const res = await axios.post(`${API_URL}/${id}/education`, education);
+      return res.data.user;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.msg || "Failed to add education"
+      );
+    }
+  }
+);
+
+// ADD Project
+export const addProject = createAsyncThunk(
+  "user/addProject",
+  async ({ id, project }, { rejectWithValue }) => {
+    try {
+      const res = await axios.post(`${API_URL}/${id}/project`, project);
+      return res.data.user;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.msg || "Failed to add project"
+      );
+    }
+  }
+);
+
+// ADD Offer
+export const addOffer = createAsyncThunk(
+  "user/addOffer",
+  async ({ id, offer }, { rejectWithValue }) => {
+    try {
+      const res = await axios.post(`${API_URL}/${id}/offer`, offer);
+      return res.data.user;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.msg || "Failed to add offer"
+      );
+    }
+  }
+);
+
+// UPDATE Education
+export const updateEducation = createAsyncThunk(
+  "user/updateEducation",
+  async ({ id, eduId, updates }, { rejectWithValue }) => {
+    try {
+      const res = await axios.put(
+        `${API_URL}/${id}/education/${eduId}`,
+        updates
+      );
+      return res.data.user;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.msg || "Failed to update education"
+      );
+    }
+  }
+);
+
+// UPDATE PROJECT
+export const updateProject = createAsyncThunk(
+  "user/updateProject",
+  async ({ id, projId, updates }, { rejectWithValue }) => {
+    try {
+      const res = await axios.put(
+        `${API_URL}/${id}/projects/${projId}`,
+        updates
+      );
+      return res.data.user;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.msg || "Failed to update project"
+      );
+    }
+  }
+);
+
+// UPDATE Offer
+export const updateOffer = createAsyncThunk(
+  "user/updateOffer",
+  async ({ id, offerId, updates }, { rejectWithValue }) => {
+    try {
+      const res = await axios.put(
+        `${API_URL}/${id}/offers/${offerId}`,
+        updates
+      );
+      return res.data.user;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.msg || "Failed to update offer"
+      );
+    }
+  }
+);
+
+// DELETE Education
+export const deleteEducation = createAsyncThunk(
+  "user/deleteEducation",
+  async ({ id, eduId }, { rejectWithValue }) => {
+    try {
+      const res = await axios.delete(`${API_URL}/${id}/education/${eduId}`);
+      return res.data.user;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.msg || "Failed to delete education"
+      );
+    }
+  }
+);
+
+// DELETE PROJECT
+export const deleteProject = createAsyncThunk(
+  "user/deleteProject",
+  async ({ id, projId }, { rejectWithValue }) => {
+    try {
+      const res = await axios.delete(`${API_URL}/${id}/projects/${projId}`);
+      return res.data.user;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.msg || "Failed to delete project"
+      );
+    }
+  }
+);
+
+// DELETE Offer
+export const deleteOffer = createAsyncThunk(
+  "user/deleteOffer",
+  async ({ id, offreId }, { rejectWithValue }) => {
+    try {
+      const res = await axios.delete(`${API_URL}/${id}/offers/${offreId}`);
+      return res.data.user;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.msg || "Failed to delete offer"
+      );
     }
   }
 );
@@ -180,6 +324,116 @@ const userSlice = createSlice({
       .addCase(deleteUser.fulfilled, (state, action) => {
         state.users = state.users.filter((u) => u._id !== action.payload);
         state.msg = "User deleted successfully";
+      })
+
+      //ADD Education
+      .addCase(addEducation.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(addEducation.fulfilled, (state, action) => {
+        state.user = action.payload;
+        state.msg = "Education added successfully";
+      })
+      .addCase(addEducation.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload;
+      })
+      
+
+      //UPDATE Education
+      .addCase(updateEducation.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(updateEducation.fulfilled, (state, action) => {
+        state.user = action.payload;
+        state.msg = "Education updated successfully";
+      })
+      .addCase(updateEducation.rejected, (state) => {
+        state.isLoading = false;
+      })
+
+      //DELETE Education
+      .addCase(deleteEducation.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(deleteEducation.fulfilled, (state, action) => {
+        state.user = action.payload;
+        state.msg = "Education deleted successfully";
+      })
+      .addCase(deleteEducation.rejected, (state) => {
+        state.isLoading = false;
+      })
+
+      //ADD Projects
+      .addCase(addProject.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(addProject.fulfilled, (state, action) => {
+        state.user = action.payload;
+        state.msg = "Project added successfully";
+      })
+      .addCase(addProject.rejected, (state) => {
+        state.isLoading = false;
+      })
+
+      //UPDATE Project
+      .addCase(updateProject.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(updateProject.fulfilled, (state, action) => {
+        state.user = action.payload;
+        state.msg = "Project updated successfully";
+      })
+      .addCase(updateProject.rejected, (state) => {
+        state.isLoading = false;
+      })
+
+      //DELETE Project
+      .addCase(deleteProject.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(deleteProject.fulfilled, (state, action) => {
+        state.user = action.payload;
+        state.msg = "Project deleted successfully";
+      })
+      .addCase(deleteProject.rejected, (state) => {
+        state.isLoading = false;
+      })
+
+      //ADD offers
+      .addCase(addOffer.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(addOffer.fulfilled, (state, action) => {
+        state.user = action.payload;
+        state.msg = "Offer added successfully";
+      })
+      .addCase(addOffer.rejected, (state) => {
+        state.isLoading = false;
+      })
+
+      //UPDATE offer
+      .addCase(updateOffer.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(updateOffer.fulfilled, (state, action) => {
+        state.user = action.payload;
+        state.msg = "Offer updated successfully";
+      })
+      .addCase(updateOffer.rejected, (state) => {
+        state.isLoading = false;
+      })
+
+      //DELETE offer
+      .addCase(deleteOffer.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(deleteOffer.fulfilled, (state, action) => {
+        state.user = action.payload;
+        state.msg = "Offer deleted successfully";
+      })
+      .addCase(deleteOffer.rejected, (state) => {
+        state.isLoading = false;
       });
   },
 });

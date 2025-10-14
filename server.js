@@ -12,11 +12,15 @@ app.use(passport.initialize());
 
 
 const userRoute= require("./routes/user");
+const offerRoute= require("./routes/offer");
+const applicationRoute = require("./routes/application");
 const connectDB= require("./connect_db");
 connectDB();
 
 
 app.use("/user", userRoute);
+app.use("/offer", offerRoute);
+app.use("/application", applicationRoute);
 
 
 
