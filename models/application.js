@@ -8,7 +8,5 @@ const applicationSchema = new Schema({
   status: { type: String, enum: ["pending", "accepted", "rejected"], default: "pending" },
   createdAt: { type: Date, default: Date.now },
 });
-//insures that each (offer, intern) combo is unique
-applicationSchema.index({ offerId: 1, internId: 1 }, { unique: true });
 
 module.exports = mongoose.model("application", applicationSchema);

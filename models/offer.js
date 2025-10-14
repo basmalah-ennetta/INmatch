@@ -9,7 +9,6 @@ const offerSchema = new Schema({
   payment: String,
   description: String,
   companyId: { type: mongoose.Schema.Types.ObjectId, ref: "user", required: true },
-  applications: [{ type: mongoose.Schema.Types.ObjectId, ref: "application" }],
   createdAt: { type: Date, default: Date.now },
 });
 

@@ -122,21 +122,6 @@ export const addProject = createAsyncThunk(
   }
 );
 
-// ADD Offer
-export const addOffer = createAsyncThunk(
-  "user/addOffer",
-  async ({ id, offer }, { rejectWithValue }) => {
-    try {
-      const res = await axios.post(`${API_URL}/${id}/offer`, offer);
-      return res.data.user;
-    } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.msg || "Failed to add offer"
-      );
-    }
-  }
-);
-
 // UPDATE Education
 export const updateEducation = createAsyncThunk(
   "user/updateEducation",
@@ -173,23 +158,6 @@ export const updateProject = createAsyncThunk(
   }
 );
 
-// UPDATE Offer
-export const updateOffer = createAsyncThunk(
-  "user/updateOffer",
-  async ({ id, offerId, updates }, { rejectWithValue }) => {
-    try {
-      const res = await axios.put(
-        `${API_URL}/${id}/offers/${offerId}`,
-        updates
-      );
-      return res.data.user;
-    } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.msg || "Failed to update offer"
-      );
-    }
-  }
-);
 
 // DELETE Education
 export const deleteEducation = createAsyncThunk(
@@ -221,20 +189,6 @@ export const deleteProject = createAsyncThunk(
   }
 );
 
-// DELETE Offer
-export const deleteOffer = createAsyncThunk(
-  "user/deleteOffer",
-  async ({ id, offreId }, { rejectWithValue }) => {
-    try {
-      const res = await axios.delete(`${API_URL}/${id}/offers/${offreId}`);
-      return res.data.user;
-    } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.msg || "Failed to delete offer"
-      );
-    }
-  }
-);
 
 // ======= INITIAL STATE =======
 const initialState = {
@@ -399,42 +353,6 @@ const userSlice = createSlice({
       .addCase(deleteProject.rejected, (state) => {
         state.isLoading = false;
       })
-
-      //ADD offers
-      .addCase(addOffer.pending, (state) => {
-        state.isLoading = true;
-      })
-      .addCase(addOffer.fulfilled, (state, action) => {
-        state.user = action.payload;
-        state.msg = "Offer added successfully";
-      })
-      .addCase(addOffer.rejected, (state) => {
-        state.isLoading = false;
-      })
-
-      //UPDATE offer
-      .addCase(updateOffer.pending, (state) => {
-        state.isLoading = true;
-      })
-      .addCase(updateOffer.fulfilled, (state, action) => {
-        state.user = action.payload;
-        state.msg = "Offer updated successfully";
-      })
-      .addCase(updateOffer.rejected, (state) => {
-        state.isLoading = false;
-      })
-
-      //DELETE offer
-      .addCase(deleteOffer.pending, (state) => {
-        state.isLoading = true;
-      })
-      .addCase(deleteOffer.fulfilled, (state, action) => {
-        state.user = action.payload;
-        state.msg = "Offer deleted successfully";
-      })
-      .addCase(deleteOffer.rejected, (state) => {
-        state.isLoading = false;
-      });
   },
 });
 
