@@ -5,7 +5,7 @@ const Offer = require("../models/offer");
 const User = require("../models/user");
 
 // === CREATE Application ===
-Router.post("/", async (req, res) => {
+Router.post("/newapplication", async (req, res) => {
   try {
     const { offerId, companyId, internId } = req.body;
 
@@ -34,8 +34,22 @@ Router.get("/", async (req, res) => {
 // === GET Applications by ID ===
 Router.get("/:id", async (req, res) => {
   try {
-    const apps = await Application.find(req.params.id)
+    const apps = await Application.findById(req.params.id)
     res.status(200).send({ applications: apps, msg: "Application by id"});
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
+
+// === UPDATE STATUS ===
+Router.put("/:id", async (req, res) => {
+  try {
+    const app = await Application.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true }
+    );
+    res.status(200).send({ msg: "Application updated", application: app });
   } catch (error) {
     res.status(500).send({ error: error.message });
   }

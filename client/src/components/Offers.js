@@ -1,260 +1,331 @@
-import { useEffect, useState } from "react";
-import axios from "axios";
+/** @format */
+import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { getAllOffers } from "../redux/offerSlice";
+import {
+  FaMapMarkerAlt,
+  FaMoneyBillWave,
+  FaClock,
+  FaCalendarAlt,
+  FaFilter,
+  FaSearch,
+  FaSortAmountDown,
+  FaTimesCircle,
+} from "react-icons/fa";
+import { motion, AnimatePresence } from "framer-motion";
 
-// Reusable Confirmation Modal
-function ConfirmationModal({ message, onConfirm, onCancel }) {
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-lg max-w-sm w-full">
-        <p className="text-gray-800">{message}</p>
-        <div className="flex justify-end gap-4 mt-4">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 rounded bg-gray-300 hover:bg-gray-400 transition"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            className="px-4 py-2 rounded bg-red-500 text-white hover:bg-red-600 transition"
-          >
-            Confirm
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+const Offers = () => {
+  const dispatch = useDispatch();
+  const { offers = [], status } = useSelector((state) => state.offer);
 
-function CompanyDashboard({ companyId }) {
-  const [offers, setOffers] = useState([]);
-  const [selectedOffer, setSelectedOffer] = useState(null);
-  const [filterStatus, setFilterStatus] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    search: "",
+    location: "",
+    payment: "",
+    type: "",
+    duration: "",
+    sort: "newest",
+  });
 
-  const [showDeleteOfferModal, setShowDeleteOfferModal] = useState(false);
-  const [offerToDelete, setOfferToDelete] = useState(null);
-
-  const [showDeleteAppModal, setShowDeleteAppModal] = useState(false);
-  const [appToDelete, setAppToDelete] = useState(null);
-
-  // Fetch all offers for the company
   useEffect(() => {
-    fetchOffers();
-  }, [companyId]);
+    dispatch(getAllOffers());
+  }, [dispatch]);
 
-  const fetchOffers = async () => {
-    try {
-      const res = await axios.get(`/offer?companyId=${companyId}`);
-      setOffers(res.data.offers);
-    } catch (err) {
-      console.error(err);
-    }
+  const handleFilterChange = (e) =>
+    setFilters((s) => ({ ...s, [e.target.name]: e.target.value }));
+
+  const clearFilters = () =>
+    setFilters({
+      search: "",
+      location: "",
+      payment: "",
+      type: "",
+      duration: "",
+      sort: "newest",
+    });
+
+  const derivePaymentKind = (payment) => {
+    const raw = (payment || "").toString().trim().toLowerCase();
+    if (raw === "" || raw === "unpaid" || /(^unpaid\b)|\bno pay\b/.test(raw))
+      return "unpaid";
+    if (/\d/.test(raw) || /[£$€¢₹]/.test(raw) || raw.includes("paid"))
+      return "paid";
+    return "paid";
   };
 
-  // Fetch offer details including applicants
-  const openOfferDetails = async (offerId) => {
-    setLoading(true);
-    try {
-      const res = await axios.get(
-        `/offer/${offerId}/details${filterStatus ? `?status=${filterStatus}` : ""}`
+  const deriveWorkType = (offer) => {
+    if (offer.type && offer.type.trim() !== "") return offer.type.toLowerCase();
+    if (offer.location && offer.location.trim() !== "") return "in-office";
+    return "remote";
+  };
+
+  const deriveDurationKey = (duration) => {
+    const raw = (duration || "").toString().trim().toLowerCase();
+    if (raw === "") return "undisclosed";
+    if (/(^3\b)|\b3\s*month|\b3-month/.test(raw)) return "3";
+    if (/(^6\b)|\b6\s*month|\b6-month/.test(raw)) return "6";
+    if (/(year|yr|12\s*months|1\s*year)/.test(raw)) return "year";
+    if (/(undisclosed|not specified|n\/a|tbd|to be determined|—|-)/.test(raw))
+      return "undisclosed";
+
+    const digits = raw.match(/\d+/);
+    if (digits) {
+      const n = parseInt(digits[0], 10);
+      if (n >= 12) return "year";
+      if (n >= 6) return "6";
+      if (n >= 3) return "3";
+    }
+    return "undisclosed";
+  };
+
+  const timeSincePosted = (dateString) => {
+    const created = new Date(dateString);
+    const now = new Date();
+    const diffDays = Math.floor((now - created) / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return "Posted today";
+    if (diffDays === 1) return "Posted yesterday";
+    return `Posted ${diffDays} days ago`;
+  };
+
+  const filteredOffers = (offers || [])
+    .filter((offer) => {
+      const title = (offer.title || "").toLowerCase();
+      const description = (offer.description || "").toLowerCase();
+      const offerLocation = (offer.location || "").toLowerCase();
+      const paymentKind = derivePaymentKind(offer.payment);
+      const workType = deriveWorkType(offer);
+      const durationKey = deriveDurationKey(offer.duration);
+      const searchTerm = filters.search.toLowerCase();
+
+      const matchSearch =
+        filters.search === "" ||
+        title.includes(searchTerm) ||
+        description.includes(searchTerm);
+
+      const matchLocation =
+        filters.location === "" ||
+        offerLocation.includes(filters.location.toLowerCase());
+
+      const matchPayment =
+        filters.payment === "" || paymentKind === filters.payment.toLowerCase();
+
+      const matchType =
+        filters.type === "" || workType === filters.type.toLowerCase();
+
+      const matchDuration =
+        filters.duration === "" ||
+        durationKey === filters.duration.toLowerCase();
+
+      return (
+        matchSearch &&
+        matchLocation &&
+        matchPayment &&
+        matchType &&
+        matchDuration
       );
-      setSelectedOffer(res.data.offer);
-    } catch (err) {
-      console.error(err);
-    }
-    setLoading(false);
-  };
-
-  // Update application status
-  const updateApplicationStatus = async (appId, status) => {
-    try {
-      await axios.put(`/application/${appId}`, { status });
-      openOfferDetails(selectedOffer._id);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // Delete offer
-  const deleteOffer = async (offerId) => {
-    try {
-      await axios.delete(`/offer/${offerId}`);
-      setSelectedOffer(null);
-      setOfferToDelete(null);
-      setShowDeleteOfferModal(false);
-      fetchOffers();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // Delete application
-  const deleteApplication = async (appId) => {
-    try {
-      await axios.delete(`/application/${appId}`);
-      setAppToDelete(null);
-      setShowDeleteAppModal(false);
-      openOfferDetails(selectedOffer._id);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+    })
+    .sort((a, b) => {
+      if (filters.sort === "newest")
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      if (filters.sort === "oldest")
+        return new Date(a.createdAt) - new Date(b.createdAt);
+      return 0;
+    });
 
   return (
-    <div className="p-6 bg-gray-100 min-h-screen">
-      <h1 className="text-3xl font-bold mb-6">My Offers</h1>
-
-      {/* Offer Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {offers.map((offer) => (
-          <div
-            key={offer._id}
-            className="bg-white p-4 rounded-lg shadow hover:shadow-lg cursor-pointer transition"
-            onClick={() => openOfferDetails(offer._id)}
-          >
-            <h2 className="text-xl font-semibold mb-2">{offer.title}</h2>
-            <p className="text-gray-600">Location: {offer.location}</p>
-            <p className="text-gray-600">Type: {offer.type}</p>
-            <p className="text-gray-600">
-              Applicants: {offer.applications?.length || 0}
-            </p>
-          </div>
-        ))}
-      </div>
-
-      {/* Offer Details Modal */}
-      {selectedOffer && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-start p-6 overflow-auto z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full p-6 relative">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
+      <div className="max-w-6xl mx-auto bg-white rounded-2xl shadow-lg p-8 border border-gray-200">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-3xl font-semibold text-gray-800">
+            Opportunities
+          </h2>
+          <div className="relative mb-4">
             <button
-              className="absolute top-3 right-3 text-red-500 font-bold text-lg"
-              onClick={() => setSelectedOffer(null)}
+              onClick={() => setShowFilters((p) => !p)}
+              className="flex items-center gap-2 bg-indigo-500 text-white px-2 py-2 rounded-lg hover:bg-indigo-600 transition"
             >
-              ✕
+              <FaFilter />
+              {showFilters ? "Hide" : "Filter"}
             </button>
-
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold">{selectedOffer.title}</h2>
-              <button
-                className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition"
-                onClick={() => {
-                  setOfferToDelete(selectedOffer._id);
-                  setShowDeleteOfferModal(true);
-                }}
-              >
-                Delete Offer
-              </button>
+            <div className="absolute left-1/2 transform -translate-x-1/2 mt-1 text-sm text-gray-500 whitespace-nowrap">
+              {filteredOffers.length} offers
             </div>
-
-            <p className="mb-2">{selectedOffer.description}</p>
-            <p className="mb-2">
-              Company: {selectedOffer.companyId.name} {selectedOffer.companyId.lastname}
-            </p>
-            <p className="mb-4">Location: {selectedOffer.location}</p>
-
-            {/* Filter */}
-            <div className="flex items-center gap-2 mb-4">
-              <label className="font-semibold">Filter Applicants:</label>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="border rounded px-2 py-1"
-              >
-                <option value="">All</option>
-                <option value="pending">Pending</option>
-                <option value="accepted">Accepted</option>
-                <option value="rejected">Rejected</option>
-              </select>
-              <button
-                className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition"
-                onClick={() => openOfferDetails(selectedOffer._id)}
-              >
-                Apply
-              </button>
-            </div>
-
-            {/* Applicants */}
-            <h3 className="text-xl font-semibold mb-2">Applicants</h3>
-            {loading ? (
-              <p>Loading applicants...</p>
-            ) : selectedOffer.applications.length === 0 ? (
-              <p>No applicants yet.</p>
-            ) : (
-              <ul className="space-y-3">
-                {selectedOffer.applications.map((app) => (
-                  <li
-                    key={app._id}
-                    className="border p-3 rounded flex justify-between items-center"
-                  >
-                    <div>
-                      <p className="font-semibold">
-                        {app.internId.name} {app.internId.lastname}
-                      </p>
-                      <p className="text-gray-600">{app.internId.email}</p>
-                      <p className="text-sm text-gray-500">
-                        Status:{" "}
-                        <span
-                          className={`font-bold ${
-                            app.status === "accepted"
-                              ? "text-green-600"
-                              : app.status === "rejected"
-                              ? "text-red-600"
-                              : "text-yellow-600"
-                          }`}
-                        >
-                          {app.status}
-                        </span>
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      {app.status === "pending" && (
-                        <>
-                          <button
-                            className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 transition"
-                            onClick={() => updateApplicationStatus(app._id, "accepted")}
-                          >
-                            Accept
-                          </button>
-                          <button
-                            className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition"
-                            onClick={() => {
-                              setAppToDelete(app._id);
-                              setShowDeleteAppModal(true);
-                            }}
-                          >
-                            Reject / Delete
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
         </div>
-      )}
 
-      {/* Delete Offer Confirmation Modal */}
-      {showDeleteOfferModal && (
-        <ConfirmationModal
-          message="Are you sure you want to delete this offer and all related applications?"
-          onConfirm={() => deleteOffer(offerToDelete)}
-          onCancel={() => setShowDeleteOfferModal(false)}
-        />
-      )}
+        {/* Toggleable Filter Panel */}
+        <AnimatePresence>
+          {showFilters && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.25 }}
+              className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-6 shadow-sm"
+            >
+              <div className="flex flex-wrap gap-3">
+                <div className="relative flex-1 min-w-[180px]">
+                  <FaSearch className="absolute top-3 left-3 text-gray-400" />
+                  <input
+                    type="text"
+                    name="search"
+                    placeholder="Search..."
+                    value={filters.search}
+                    onChange={handleFilterChange}
+                    className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
+                  />
+                </div>
 
-      {/* Delete Application Confirmation Modal */}
-      {showDeleteAppModal && (
-        <ConfirmationModal
-          message="Are you sure you want to delete this application?"
-          onConfirm={() => deleteApplication(appToDelete)}
-          onCancel={() => setShowDeleteAppModal(false)}
-        />
-      )}
+                <input
+                  type="text"
+                  name="location"
+                  placeholder="Location..."
+                  value={filters.location}
+                  onChange={handleFilterChange}
+                  className="flex-1 min-w-[150px] border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
+                />
+
+                <select
+                  name="payment"
+                  value={filters.payment}
+                  onChange={handleFilterChange}
+                  className="flex-1 min-w-[130px] border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
+                >
+                  <option value="">All Payments</option>
+                  <option value="paid">Paid</option>
+                  <option value="unpaid">Unpaid</option>
+                </select>
+
+                <select
+                  name="type"
+                  value={filters.type}
+                  onChange={handleFilterChange}
+                  className="flex-1 min-w-[130px] border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
+                >
+                  <option value="">All Work Types</option>
+                  <option value="remote">Remote</option>
+                  <option value="hybrid">Hybrid</option>
+                  <option value="in-office">In-office</option>
+                </select>
+
+                <select
+                  name="duration"
+                  value={filters.duration}
+                  onChange={handleFilterChange}
+                  className="flex-1 min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
+                >
+                  <option value="">All Durations</option>
+                  <option value="3">3 months</option>
+                  <option value="6">6 months</option>
+                  <option value="year">1 year</option>
+                  <option value="undisclosed">Undisclosed</option>
+                </select>
+
+                <div className="relative flex-1 min-w-[140px]">
+                  <FaSortAmountDown className="absolute top-3 left-3 text-gray-400" />
+                  <select
+                    name="sort"
+                    value={filters.sort}
+                    onChange={handleFilterChange}
+                    className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2 bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
+                  >
+                    <option value="newest">Newest</option>
+                    <option value="oldest">Oldest</option>
+                  </select>
+                </div>
+
+                <button
+                  onClick={clearFilters}
+                  className="flex items-center gap-2 bg-gray-200 text-gray-700 hover:bg-gray-300 transition px-4 py-2 rounded-lg text-sm"
+                >
+                  <FaTimesCircle />
+                  Clear
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* OFFERS LIST */}
+        {status === "pending" ? (
+          <p className="text-gray-500 text-center mt-8">Loading offers...</p>
+        ) : filteredOffers.length > 0 ? (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
+            {filteredOffers.map((offer) => {
+              const paymentKind = derivePaymentKind(offer.payment);
+              const workType = deriveWorkType(offer);
+
+              return (
+                <div
+                  key={offer._id}
+                  className="relative border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition p-5 bg-white"
+                >
+                  {/* TYPE BADGE TOP-RIGHT */}
+                  <span
+                    className={`absolute top-3 right-3 px-4 py-1.5 rounded-full text-sm font-semibold shadow-sm
+                      ${
+                        workType === "remote"
+                          ? "bg-blue-100 text-blue-800"
+                          : workType === "hybrid"
+                          ? "bg-purple-100 text-purple-800"
+                          : "bg-green-100 text-green-800"
+                      }`}
+                  >
+                    {workType.toUpperCase()}
+                  </span>
+
+                  <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                    {offer.title}
+                  </h3>
+
+                  <p className="text-gray-600 mb-3 line-clamp-3">
+                    {offer.description}
+                  </p>
+
+                  <div className="space-y-2 text-sm text-gray-500">
+                    <p className="flex items-center gap-2">
+                      <FaMapMarkerAlt className="text-indigo-500" />
+                      {offer.location || "—"}
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <FaMoneyBillWave
+                        className={
+                          paymentKind === "paid"
+                            ? "text-green-500"
+                            : "text-gray-400"
+                        }
+                      />
+                      {paymentKind === "paid"
+                        ? offer.payment || "Paid"
+                        : "Unpaid"}
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <FaClock className="text-blue-500" />{" "}
+                      {offer.duration || "Undisclosed duration"}
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <FaCalendarAlt className="text-orange-500" />{" "}
+                      {timeSincePosted(offer.createdAt)}
+                    </p>
+                  </div>
+
+                  <div className="mt-4">
+                    <button className="w-full bg-indigo-500 text-white py-2 rounded-lg hover:bg-indigo-600 transition">
+                      Apply Now
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-gray-500 text-center mt-8">No offers found.</p>
+        )}
+      </div>
     </div>
   );
-}
+};
 
-export default CompanyDashboard;
+export default Offers;

@@ -2,12 +2,9 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 
-// backend base URL
-const API_URL = "http://localhost:5000/user"; // adjust if needed
+const API_URL = "http://localhost:5000/user";
 
-// ======= ASYNC THUNKS =======
-
-// SIGNUP
+// ====================== AUTH THUNKS ======================
 export const signupUser = createAsyncThunk(
   "user/signup",
   async (userData, { rejectWithValue }) => {
@@ -16,12 +13,11 @@ export const signupUser = createAsyncThunk(
       localStorage.setItem("token", res.data.token);
       return res.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.msg || "Signup failed");
+      return rejectWithValue(error.response?.data || "Signup failed");
     }
   }
 );
 
-// LOGIN
 export const loginUser = createAsyncThunk(
   "user/login",
   async (credentials, { rejectWithValue }) => {
@@ -30,12 +26,11 @@ export const loginUser = createAsyncThunk(
       localStorage.setItem("token", res.data.token);
       return res.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.msg || "Login failed");
+      return rejectWithValue(error.response?.data || "Login failed");
     }
   }
 );
 
-// GET CURRENT USER
 export const getCurrentUser = createAsyncThunk(
   "user/current",
   async (_, { rejectWithValue }) => {
@@ -44,164 +39,59 @@ export const getCurrentUser = createAsyncThunk(
       const res = await axios.get(`${API_URL}/current`, {
         headers: { Authorization: token },
       });
-      return res.data.user;
+      return res.data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.msg || "Unauthorized");
+      return rejectWithValue(err.response?.data || "Unauthorized");
     }
   }
 );
 
-// GET ALL USERS (admin)
+// ====================== ADMIN / GENERAL ======================
 export const getAllUsers = createAsyncThunk(
   "user/getAll",
   async (_, { rejectWithValue }) => {
     try {
       const res = await axios.get(API_URL);
-      return res.data.users;
+      return res;
     } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.msg || "Failed to fetch users"
-      );
+      return rejectWithValue(error.response?.data || "Failed to fetch users");
     }
   }
 );
 
-// UPDATE USER
+// ====================== PROFILE ======================
 export const updateUser = createAsyncThunk(
   "user/update",
   async ({ id, updates }, { rejectWithValue }) => {
     try {
       const res = await axios.put(`${API_URL}/${id}`, updates);
-      return res.data.user;
+      return res.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.msg || "Update failed");
+      return rejectWithValue(error.response?.data || "Update failed");
     }
   }
 );
 
-// DELETE USER
 export const deleteUser = createAsyncThunk(
   "user/delete",
   async (id, { rejectWithValue }) => {
     try {
-      await axios.delete(`${API_URL}/${id}`);
-      return id;
+      const res = await axios.delete(`${API_URL}/${id}`);
+      return res;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.msg || "Delete failed");
+      return rejectWithValue(error.response?.data || "Delete failed");
     }
   }
 );
 
-// ADD Education
-export const addEducation = createAsyncThunk(
-  "user/addEducation",
-  async ({ id, education }, { rejectWithValue }) => {
-    try {
-      const res = await axios.post(`${API_URL}/${id}/education`, education);
-      return res.data.user;
-    } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.msg || "Failed to add education"
-      );
-    }
-  }
-);
-
-// ADD Project
-export const addProject = createAsyncThunk(
-  "user/addProject",
-  async ({ id, project }, { rejectWithValue }) => {
-    try {
-      const res = await axios.post(`${API_URL}/${id}/project`, project);
-      return res.data.user;
-    } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.msg || "Failed to add project"
-      );
-    }
-  }
-);
-
-// UPDATE Education
-export const updateEducation = createAsyncThunk(
-  "user/updateEducation",
-  async ({ id, eduId, updates }, { rejectWithValue }) => {
-    try {
-      const res = await axios.put(
-        `${API_URL}/${id}/education/${eduId}`,
-        updates
-      );
-      return res.data.user;
-    } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.msg || "Failed to update education"
-      );
-    }
-  }
-);
-
-// UPDATE PROJECT
-export const updateProject = createAsyncThunk(
-  "user/updateProject",
-  async ({ id, projId, updates }, { rejectWithValue }) => {
-    try {
-      const res = await axios.put(
-        `${API_URL}/${id}/projects/${projId}`,
-        updates
-      );
-      return res.data.user;
-    } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.msg || "Failed to update project"
-      );
-    }
-  }
-);
-
-
-// DELETE Education
-export const deleteEducation = createAsyncThunk(
-  "user/deleteEducation",
-  async ({ id, eduId }, { rejectWithValue }) => {
-    try {
-      const res = await axios.delete(`${API_URL}/${id}/education/${eduId}`);
-      return res.data.user;
-    } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.msg || "Failed to delete education"
-      );
-    }
-  }
-);
-
-// DELETE PROJECT
-export const deleteProject = createAsyncThunk(
-  "user/deleteProject",
-  async ({ id, projId }, { rejectWithValue }) => {
-    try {
-      const res = await axios.delete(`${API_URL}/${id}/projects/${projId}`);
-      return res.data.user;
-    } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.msg || "Failed to delete project"
-      );
-    }
-  }
-);
-
-
-// ======= INITIAL STATE =======
+// ====================== SLICE ======================
 const initialState = {
   user: null,
-  users: [],
-  token: localStorage.getItem("token") || null,
-  isLoading: false,
-  isAuth: false,
+  userList: [],
+  status: null,
   error: null,
-  msg: null,
 };
 
-// ======= SLICE =======
 const userSlice = createSlice({
   name: "user",
   initialState,
@@ -209,150 +99,96 @@ const userSlice = createSlice({
     logout: (state) => {
       localStorage.removeItem("token");
       state.user = null;
-      state.isAuth = false;
-      state.token = null;
-      state.msg = "Logged out successfully";
-    },
+    }
   },
   extraReducers: (builder) => {
     builder
-      // SIGNUP
+      // ========== SIGNUP ==========
       .addCase(signupUser.pending, (state) => {
-        state.isLoading = true;
+        state.status = "pending";
+        state.erorr = null;
       })
       .addCase(signupUser.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.user = action.payload.newUserToken;
-        state.token = action.payload.token;
-        state.isAuth = true;
-        state.msg = action.payload.msg;
+        state.status = "success";
+        state.user = action.payload.user;
+        localStorage.setItem("token", action.payload.token);
       })
       .addCase(signupUser.rejected, (state, action) => {
-        state.isLoading = false;
+        state.status = "fail";
         state.error = action.payload;
       })
 
-      // LOGIN
+      // ========== LOGIN ==========
       .addCase(loginUser.pending, (state) => {
-        state.isLoading = true;
+        state.status = "pending";
+        state.erorr = null;
       })
       .addCase(loginUser.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.user = action.payload.userExists;
-        state.token = action.payload.token;
-        state.isAuth = true;
-        state.msg = action.payload.msg;
+        state.status = "success";
+        state.user = action.payload.user;
+        localStorage.setItem("token", action.payload.token);
       })
       .addCase(loginUser.rejected, (state, action) => {
-        state.isLoading = false;
+        state.status = "fail";
         state.error = action.payload;
       })
 
-      // GET CURRENT USER
+      // ========== CURRENT USER ==========
       .addCase(getCurrentUser.pending, (state) => {
-        state.isLoading = true;
+        state.status = "pending";
+        state.erorr = null;
       })
       .addCase(getCurrentUser.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.user = action.payload;
-        state.isAuth = true;
+        state.status = "success";
+        state.user = action.payload.user || action.payload;
       })
       .addCase(getCurrentUser.rejected, (state, action) => {
-        state.isLoading = false;
-        state.isAuth = false;
+        state.status = "fail";
         state.error = action.payload;
       })
 
-      // GET ALL USERS
+      // ========== GET ALL USERS ==========
+      .addCase(getAllUsers.pending, (state) => {
+        state.status = "pending";
+        state.error = null;
+      })
       .addCase(getAllUsers.fulfilled, (state, action) => {
-        state.users = action.payload;
+        state.status = "success";
+        state.userList = action.payload.data?.users || [];
       })
-
-      // UPDATE USER
-      .addCase(updateUser.fulfilled, (state, action) => {
-        state.user = action.payload;
-        state.msg = "Profile updated successfully";
-      })
-
-      // DELETE USER
-      .addCase(deleteUser.fulfilled, (state, action) => {
-        state.users = state.users.filter((u) => u._id !== action.payload);
-        state.msg = "User deleted successfully";
-      })
-
-      //ADD Education
-      .addCase(addEducation.pending, (state) => {
-        state.isLoading = true;
-      })
-      .addCase(addEducation.fulfilled, (state, action) => {
-        state.user = action.payload;
-        state.msg = "Education added successfully";
-      })
-      .addCase(addEducation.rejected, (state, action) => {
-        state.isLoading = false;
+      .addCase(getAllUsers.rejected, (state, action) => {
+        state.status = "fail";
+        state.userList = [];
         state.error = action.payload;
       })
-      
 
-      //UPDATE Education
-      .addCase(updateEducation.pending, (state) => {
-        state.isLoading = true;
+      // ========== UPDATE USER ==========
+      .addCase(updateUser.pending, (state) => {
+        state.status = "pending";
+        state.error = null;
       })
-      .addCase(updateEducation.fulfilled, (state, action) => {
-        state.user = action.payload;
-        state.msg = "Education updated successfully";
+      .addCase(updateUser.fulfilled, (state, action) => {
+        state.status = "success";
+        state.user = { ...state.user, ...(action.payload.user || action.payload)};
       })
-      .addCase(updateEducation.rejected, (state) => {
-        state.isLoading = false;
-      })
-
-      //DELETE Education
-      .addCase(deleteEducation.pending, (state) => {
-        state.isLoading = true;
-      })
-      .addCase(deleteEducation.fulfilled, (state, action) => {
-        state.user = action.payload;
-        state.msg = "Education deleted successfully";
-      })
-      .addCase(deleteEducation.rejected, (state) => {
-        state.isLoading = false;
+      .addCase(updateUser.rejected, (state, action) => {
+        state.status = "fail";
+        state.error = action.payload;
       })
 
-      //ADD Projects
-      .addCase(addProject.pending, (state) => {
-        state.isLoading = true;
+      // ========== DELETE USER ==========
+      .addCase(deleteUser.pending, (state) => {
+        state.status = "pending";
+        state.error = null;
       })
-      .addCase(addProject.fulfilled, (state, action) => {
-        state.user = action.payload;
-        state.msg = "Project added successfully";
+      .addCase(deleteUser.fulfilled, (state, action) => {
+        state.status = "success";
+        state.userList = action.payload.data;
       })
-      .addCase(addProject.rejected, (state) => {
-        state.isLoading = false;
-      })
-
-      //UPDATE Project
-      .addCase(updateProject.pending, (state) => {
-        state.isLoading = true;
-      })
-      .addCase(updateProject.fulfilled, (state, action) => {
-        state.user = action.payload;
-        state.msg = "Project updated successfully";
-      })
-      .addCase(updateProject.rejected, (state) => {
-        state.isLoading = false;
-      })
-
-      //DELETE Project
-      .addCase(deleteProject.pending, (state) => {
-        state.isLoading = true;
-      })
-      .addCase(deleteProject.fulfilled, (state, action) => {
-        state.user = action.payload;
-        state.msg = "Project deleted successfully";
-      })
-      .addCase(deleteProject.rejected, (state) => {
-        state.isLoading = false;
-      })
+      .addCase(deleteUser.rejected, (state, action) => {
+        state.status = "fail";
+        state.error = action.payload;
+      });
   },
 });
 

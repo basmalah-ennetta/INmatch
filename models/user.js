@@ -9,6 +9,7 @@ const userSchema = new Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   phonenumber: { type: String, required: true },
+  address: String,
   role: {
     type: String,
     enum: ["intern", "entreprise", "admin"],
@@ -30,6 +31,9 @@ const userSchema = new Schema({
       date: String,
     },
   ],
+  linkedin: String,
+  website: String,
+  github: String,
   skills: [{ type: String }],
   description: String
 });

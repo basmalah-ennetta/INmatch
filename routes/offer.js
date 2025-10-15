@@ -5,7 +5,7 @@ const User = require("../models/user");
 const Application = require("../models/application");
 
 // === CREATE Offer ===
-Router.post("/", async (req, res) => {
+Router.post("/newOffer", async (req, res) => {
   try {
     const newOffer = new Offer(req.body);
     await newOffer.save();

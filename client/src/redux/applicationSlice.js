@@ -4,106 +4,134 @@ import axios from "axios";
 
 const API_URL = "http://localhost:5000/application";
 
-// ========== ASYNC THUNKS ==========
+// ================== INTERN ACTIONS ==================
 
-// Get all applications for logged-in user
-export const getUserApplications = createAsyncThunk(
-  "application/getUserApplications",
-  async (_, { rejectWithValue }) => {
-    try {
-      const token = localStorage.getItem("token");
-      const res = await axios.get(`${API_URL}/myApplications`, {
-        headers: { Authorization: token },
-      });
-      return res.data.applications;
-    } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.msg || "Failed to fetch applications"
-      );
-    }
-  }
-);
-
-// Create a new application (used by interns applying to offers)
+// apply
 export const createApplication = createAsyncThunk(
-  "application/createApplication",
-  async (offerId, { rejectWithValue }) => {
+  "application/create",
+  async (appData, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem("token");
-      const res = await axios.post(
-        `${API_URL}/apply/${offerId}`,
-        {},
-        { headers: { Authorization: token } }
-      );
-      return res.data.application;
+      const res = await axios.post(API_URL, appData);
+      return res.data;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.msg || "Failed to apply to offer"
+        error.response?.data || "Failed to create application"
       );
     }
   }
 );
 
-// Delete an application (optional)
+// delete
 export const deleteApplication = createAsyncThunk(
-  "application/deleteApplication",
-  async (applicationId, { rejectWithValue }) => {
+  "application/delete",
+  async (id, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem("token");
-      await axios.delete(`${API_URL}/${applicationId}`, {
-        headers: { Authorization: token },
-      });
-      return applicationId;
+      const res = await axios.delete(`${API_URL}/${id}`);
+      return res;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.msg || "Failed to delete application"
+        error.res?.data || "Failed to delete application"
       );
     }
   }
 );
 
-// ========== SLICE ==========
+// ================== ENTREPRISE ACTIONS ==================
+
+// update status (reject/accept)
+export const updateApplicationStatus = createAsyncThunk(
+  "application/updateStatus",
+  async ({ id, editedApp }, { rejectWithValue }) => {
+    try {
+      const res = await axios.put(`${API_URL}/${id}`, editedApp);
+      return res.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || "Failed to update status");
+    }
+  }
+);
+
+// see
+export const getApplications = createAsyncThunk(
+  "application/getApps",
+  async () => {
+    try {
+      const res = await axios.get(API_URL);
+      return res.data;
+    } catch (error) {
+      console.log(error);
+    }
+  }
+);
+// ================== SLICE ==================
+const initialState = {
+  applicationList: [],
+  status: null,
+  error: null,
+};
 
 const applicationSlice = createSlice({
   name: "application",
-  initialState: {
-    applications: [],
-    isLoading: false,
-    error: null,
-    msg: null,
-  },
+  initialState,
   reducers: {},
   extraReducers: (builder) => {
     builder
-      // Get all applications
-      .addCase(getUserApplications.pending, (state) => {
-        state.isLoading = true;
+      // ===== CREATE =====
+      .addCase(createApplication.pending, (state) => {
+        state.status = "pending";
+        state.error = null;
       })
-      .addCase(getUserApplications.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.applications = action.payload;
-      })
-      .addCase(getUserApplications.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload;
-      })
-
-      // Create
       .addCase(createApplication.fulfilled, (state, action) => {
-        state.applications.push(action.payload);
-        state.msg = "Application submitted successfully";
+        state.status = "success";
+        state.application = action.payload.application;
       })
       .addCase(createApplication.rejected, (state, action) => {
+        state.status = "fail";
         state.error = action.payload;
       })
 
-      // Delete
+      // ===== COMPANY GET =====
+      .addCase(getApplications.pending, (state) => {
+        state.status = "pending";
+        state.error = null;
+      })
+      .addCase(getApplications.fulfilled, (state, action) => {
+        state.status = "success";
+        state.applicationList = action.payload.applications || [];
+      })
+      .addCase(getApplications.rejected, (state, action) => {
+        state.status = "fail";
+        state.error = action.payload;
+      })
+
+      // ===== UPDATE STATUS =====
+      .addCase(updateApplicationStatus.pending, (state) => {
+        state.status = "pending";
+        state.error = null;
+      })
+      .addCase(updateApplicationStatus.fulfilled, (state, action) => {
+        state.status = "success";
+        state.applications = action.payload;
+      })
+
+      .addCase(updateApplicationStatus.rejected, (state, action) => {
+        state.status = "fail";
+        state.error = action.payload;
+      })
+
+      // ===== DELETE =====
+      .addCase(deleteApplication.pending, (state) => {
+        state.status = "pending";
+      })
       .addCase(deleteApplication.fulfilled, (state, action) => {
-        state.applications = state.applications.filter(
-          (a) => a._id !== action.payload
-        );
+        state.status = "success";
+      })
+      .addCase(deleteApplication.rejected, (state, action) => {
+        state.status = "fail";
+        state.error = action.payload;
       });
   },
 });
 
+export const { clearSelectedApplication } = applicationSlice.actions;
 export default applicationSlice.reducer;

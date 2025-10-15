@@ -1,298 +1,241 @@
 /** @format */
+
 import React, { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
-import axios from "axios";
-import {
-  updateUser,
-  getCurrentUser,
-  addEducation,
-  addProject,
-  addOffer,
-  updateEducation,
-  updateProject,
-  updateOffer,
-  deleteEducation,
-  deleteProject,
-  deleteOffer,
-} from "../redux/userSlice";
+import "./Profile.css";
+import { updateUser, getCurrentUser } from "../redux/userSlice";
+import { createOffer, updateOffer, deleteOffer } from "../redux/offerSlice";
 import {
   FaLinkedin,
   FaGlobe,
   FaGithub,
-  FaFileAlt,
   FaTrash,
   FaEdit,
   FaSave,
+  FaBars,
+  FaUser,
+  FaFileAlt,
 } from "react-icons/fa";
-import ProjectCard from "./ProjectCard";
-import InternshipOfferCard from "./OfferCard";
 
 export default function Profile() {
   const { user } = useSelector((state) => state.user);
   const dispatch = useDispatch();
 
-  const [formData, setFormData] = useState({
-    name: user?.name || "",
-    lastname: user?.lastname || "",
-    phonenumber: user?.phonenumber || "",
-    address: user?.address || "",
-    linkedin: user?.linkedin || "",
-    website: user?.website || "",
-    github: user?.github || "",
-    resume: user?.resume || "",
-    description: user?.description || "",
-    skills: user?.skills || [],
-  });
-
-  const [profilePic, setProfilePic] = useState(null);
+  const [formData, setFormData] = useState({});
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // local editable arrays + edit-mode trackers
-  const [projects, setProjects] = useState([]);
-  const [offers, setOffers] = useState([]);
-  const [education, setEducation] = useState([]);
-
-  // each map holds ids currently being edited
   const [editingProjects, setEditingProjects] = useState({});
-  const [editingOffers, setEditingOffers] = useState({});
   const [editingEducation, setEditingEducation] = useState({});
+  const [editingOffers, setEditingOffers] = useState({});
+
+  const [newProject, setNewProject] = useState(null);
+  const [newEducation, setNewEducation] = useState(null);
+  const [newOffer, setNewOffer] = useState(null);
+
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
-    // Fetch current user (and populate local arrays)
-    const fetchCurrentUser = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const res = await axios.get("http://localhost:5000/user/current", {
-          headers: { Authorization: token },
-        });
-        const u = res.data.user;
-        setFormData((prev) => ({ ...prev, ...u }));
-        setProjects(u.projects || []);
-        setOffers(u.offers || []);
-        setEducation(u.education || []);
-      } catch (err) {
-        console.error("Error fetching current user:", err);
-      }
-    };
+    dispatch(getCurrentUser());
+  }, [dispatch]);
 
-    fetchCurrentUser();
-  }, []);
+  const role = formData.role || user?.role;
 
-  // keep formData in sync if the global user changes
   useEffect(() => {
-    if (user) {
-      setFormData((prev) => ({ ...prev, ...user }));
-      setProjects(user.projects || []);
-      setOffers(user.offers || []);
-      setEducation(user.education || []);
-    }
+    if (user) setFormData(user);
   }, [user]);
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) setProfilePic(URL.createObjectURL(file));
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
+  const handleChange = (e) =>
+    setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const resultAction = await dispatch(
+      const res = await dispatch(
         updateUser({ id: user._id, updates: formData })
       );
-      if (updateUser.fulfilled.match(resultAction)) {
-        setIsEditing(false);
-        // refresh local arrays from returned user if present
-        if (resultAction.payload?.projects)
-          setProjects(resultAction.payload.projects);
-        if (resultAction.payload?.offers)
-          setOffers(resultAction.payload.offers);
-        if (resultAction.payload?.education)
-          setEducation(resultAction.payload.education);
-      } else {
-        alert("Failed to save changes.");
-      }
+      if (updateUser.fulfilled.match(res)) setIsEditing(false);
+      else alert("Failed to save changes.");
     } finally {
       setIsSaving(false);
     }
   };
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  // ===== ADD =====
-  const handleAddProject = async () => {
-    const newProject = { title: "", image: "", description: "", liveDemo: "" };
-    const res = await dispatch(
-      addProject({ id: user._id, project: newProject })
-    );
-    if (addProject.fulfilled.match(res)) {
-      // update local projects array from payload.user if present
-      const updatedUser = res.payload;
-      if (updatedUser?.projects) {
-        setProjects(updatedUser.projects);
-      } else {
-        // fallback: push the returned project (if API returns it)
-        setProjects((prev) => [...prev, { ...newProject }]);
-      }
-    }
-  };
-
-  const handleAddOffer = async () => {
-    const newOffer = {
-      title: "",
-      company: "",
-      location: "",
-      tags: {},
-      payment: "",
-      description: "",
-    };
-    const res = await dispatch(addOffer({ id: user._id, offer: newOffer }));
-    if (addOffer.fulfilled.match(res)) {
-      const updatedUser = res.payload;
-      if (updatedUser?.offers) setOffers(updatedUser.offers);
-      else setOffers((prev) => [...prev, { ...newOffer }]);
-    }
-  };
-
-  const handleAddEducation = async () => {
-    const newEdu = { diploma: "", university: "", location: "", date: "" };
-    const res = await dispatch(
-      addEducation({ id: user._id, education: newEdu })
-    );
-    if (addEducation.fulfilled.match(res)) {
-      const updatedUser = res.payload;
-      if (updatedUser?.education) setEducation(updatedUser.education);
-      else setEducation((prev) => [...prev, { ...newEdu }]);
-    }
-  };
-
-  // ===== EDIT MODE HELPERS (toggle / change local arrays) =====
-  const toggleEditProject = (id) => {
-    setEditingProjects((s) => ({ ...s, [id]: !s[id] }));
-  };
-  const toggleEditOffer = (id) => {
-    setEditingOffers((s) => ({ ...s, [id]: !s[id] }));
-  };
-  const toggleEditEducation = (id) => {
-    setEditingEducation((s) => ({ ...s, [id]: !s[id] }));
-  };
-
+  // ===== PROJECTS =====
+  const handleAddProject = () =>
+    setNewProject({ title: "", description: "", liveDemo: "" });
+  const toggleEditProject = (id) =>
+    setEditingProjects((prev) => ({ ...prev, [id]: !prev[id] }));
   const changeProjectField = (id, field, value) => {
-    setProjects((prev) =>
-      prev.map((p) => (p._id === id ? { ...p, [field]: value } : p))
+    const updated = formData.projects.map((p, i) =>
+      p._id === id || i === id ? { ...p, [field]: value } : p
     );
+    setFormData({ ...formData, projects: updated });
   };
-  const changeOfferField = (id, field, value) => {
-    setOffers((prev) =>
-      prev.map((o) => (o._id === id ? { ...o, [field]: value } : o))
+  const handleUpdateProject = async (p) => {
+    await dispatch(
+      updateUser({ id: user._id, updates: { projects: formData.projects } })
     );
+    toggleEditProject(p._id);
   };
+  const handleDeleteProject = async (id) => {
+    const updated = formData.projects.filter(
+      (p, i) => p._id !== id && i !== id
+    );
+    await dispatch(
+      updateUser({ id: user._id, updates: { projects: updated } })
+    );
+    setFormData({ ...formData, projects: updated });
+  };
+
+  // ===== EDUCATION =====
+  const handleAddEducation = () =>
+    setNewEducation({ diploma: "", university: "", location: "", date: "" });
+  const toggleEditEducation = (id) =>
+    setEditingEducation((prev) => ({ ...prev, [id]: !prev[id] }));
   const changeEducationField = (id, field, value) => {
-    setEducation((prev) =>
-      prev.map((e) => (e._id === id ? { ...e, [field]: value } : e))
+    const updated = formData.education.map((ed, i) =>
+      ed._id === id || i === id ? { ...ed, [field]: value } : ed
     );
+    setFormData({ ...formData, education: updated });
+  };
+  const handleUpdateEducation = async (ed) => {
+    await dispatch(
+      updateUser({ id: user._id, updates: { education: formData.education } })
+    );
+    toggleEditEducation(ed._id);
+  };
+  const handleDeleteEducation = async (id) => {
+    const updated = formData.education.filter(
+      (ed, i) => ed._id !== id && i !== id
+    );
+    await dispatch(
+      updateUser({ id: user._id, updates: { education: updated } })
+    );
+    setFormData({ ...formData, education: updated });
   };
 
-  // ===== UPDATE (save a single item) =====
-  const handleUpdateProject = async (proj) => {
-    const res = await dispatch(
-      updateProject({ id: user._id, projId: proj._id, updates: proj })
+  // ===== OFFERS =====
+  const handleAddOffer = () =>
+    setNewOffer({ title: "", description: "", location: "" });
+  const toggleEditOffer = (id) =>
+    setEditingOffers((prev) => ({ ...prev, [id]: !prev[id] }));
+  const changeOfferField = (id, field, value) => {
+    const updated = formData.offers.map((o, i) =>
+      o._id === id || i === id ? { ...o, [field]: value } : o
     );
-    if (updateProject.fulfilled.match(res)) {
-      // use payload user if provided to refresh
-      if (res.payload?.projects) setProjects(res.payload.projects);
-      toggleEditProject(proj._id);
-    } else {
-      alert("Failed to update project");
-    }
+    setFormData({ ...formData, offers: updated });
   };
-
   const handleUpdateOffer = async (offer) => {
-    const res = await dispatch(
-      updateOffer({ id: user._id, offerId: offer._id, updates: offer })
-    );
-    if (updateOffer.fulfilled.match(res)) {
-      if (res.payload?.offers) setOffers(res.payload.offers);
-      toggleEditOffer(offer._id);
-    } else {
-      alert("Failed to update offer");
-    }
+    await dispatch(updateOffer({ id: offer._id, updates: offer }));
+    toggleEditOffer(offer._id);
+  };
+  const handleDeleteOffer = async (id) => {
+    await dispatch(deleteOffer(id));
+    const updated = formData.offers.filter((o) => o._id !== id);
+    setFormData({ ...formData, offers: updated });
   };
 
-  const handleUpdateEducation = async (edu) => {
-    const res = await dispatch(
-      updateEducation({ id: user._id, eduId: edu._id, updates: edu })
-    );
-    if (updateEducation.fulfilled.match(res)) {
-      if (res.payload?.education) setEducation(res.payload.education);
-      toggleEditEducation(edu._id);
-    } else {
-      alert("Failed to update education");
-    }
-  };
+  const projects = formData.projects || [];
+  const education = formData.education || [];
+  const offers = formData.offers || [];
 
-  // ===== DELETE =====
-  const handleDeleteProject = async (projId) => {
-    const res = await dispatch(deleteProject({ id: user._id, projId }));
-    if (deleteProject.fulfilled.match(res)) {
-      if (res.payload?.projects) {
-        setProjects(res.payload.projects);
-      } else {
-        setProjects((prev) => prev.filter((p) => p._id !== projId));
-      }
-    } else {
-      alert("Failed to delete project");
-    }
-  };
-
-  const handleDeleteOffer = async (offerId) => {
-    const res = await dispatch(deleteOffer({ id: user._id, offerId }));
-    if (deleteOffer.fulfilled.match(res)) {
-      if (res.payload?.offers) setOffers(res.payload.offers);
-      else setOffers((prev) => prev.filter((o) => o._id !== offerId));
-    } else {
-      alert("Failed to delete offer");
-    }
-  };
-
-  const handleDeleteEducation = async (eduId) => {
-    const res = await dispatch(deleteEducation({ id: user._id, eduId }));
-    if (deleteEducation.fulfilled.match(res)) {
-      if (res.payload?.education) setEducation(res.payload.education);
-      else setEducation((prev) => prev.filter((e) => e._id !== eduId));
-    } else {
-      alert("Failed to delete education");
-    }
+  const handleNavClick = (path) => {
+    if (path) navigate(path);
+    setSidebarOpen(false);
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f7ff] text-gray-800 flex">
-      {/* ==== Sidebar ==== */}
-      <div className="w-1/5 bg-indigo-900 text-white flex flex-col items-center py-10 space-y-6">
-        <h1 className="text-2xl font-bold">PROFILE</h1>
-        <nav className="flex flex-col gap-3 text-sm font-medium w-full px-6">
-          <button className="hover:bg-indigo-700 p-2 rounded-lg text-left">
-            Account Information
-          </button>
-          <button className="hover:bg-indigo-700 p-2 rounded-lg text-left">
-            {user?.role === "intern" ? "Projects" : "Internship Offers"}
-          </button>
-          <button
-            onClick={() => (window.location.href = "/applications")}
-            className="hover:bg-indigo-700 p-2 rounded-lg text-left"
-          >
-            {user?.role === "intern"
-              ? "My Applications"
-              : "Applications Received"}
-          </button>
-        </nav>
+    <div className="min-h-screen bg-[#f5f7ff] text-gray-800 flex flex-col lg:flex-row">
+      {/* Mobile Top Bar (hamburger) */}
+      <div className="lg:hidden flex items-center justify-between bg-indigo-900 text-white px-4 py-3">
+        <h1 className="text-lg font-bold">PROFILE</h1>
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="text-2xl"
+        >
+          <FaBars />
+        </button>
       </div>
 
-      {/* ==== Main Section ==== */}
-      <div className="w-3/5 p-10 space-y-8">
+      {/* Sidebar */}
+      {sidebarOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      <aside
+        className={`bg-indigo-900 text-white flex flex-col py-10 space-y-6 transition-all duration-300 z-50
+          ${
+            sidebarOpen
+              ? "fixed left-0 top-0 h-full w-4/5 sm:w-1/2 translate-x-0 opacity-100"
+              : "fixed -left-full top-0 h-full w-4/5 sm:w-1/2 translate-x-0 opacity-0"
+          }
+          lg:static lg:w-1/5 lg:translate-x-0 lg:opacity-100 lg:h-screen lg:fixed`}
+      >
+        <div className="px-4 overflow-y-auto">
+          <div className="flex items-center justify-between lg:justify-center">
+            <h1
+              className={`text-2xl font-bold text-center transition-opacity duration-300 ${
+                sidebarOpen ? "opacity-100" : "opacity-0 lg:opacity-100"
+              }`}
+            >
+              PROFILE
+            </h1>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden text-xl"
+              aria-label="Close menu"
+            >
+              ✕
+            </button>
+          </div>
+
+          <nav className="flex flex-col gap-3 text-sm font-medium w-full mt-6">
+            <button
+              onClick={() => handleNavClick("/profile")}
+              className={`p-2 rounded-lg flex items-center gap-2 transition-all ${
+                location.pathname === "/profile"
+                  ? "bg-indigo-700 text-white"
+                  : "hover:bg-indigo-700"
+              }`}
+            >
+              <FaUser />
+              <span
+                className={`${sidebarOpen ? "inline" : "hidden lg:inline"}`}
+              >
+                Account Information
+              </span>
+            </button>
+            <button
+              onClick={() => handleNavClick("/applications")}
+              className={`p-2 rounded-lg flex items-center gap-2 transition-all ${
+                location.pathname === "/applications"
+                  ? "bg-indigo-700 text-white"
+                  : "hover:bg-indigo-700"
+              }`}
+            >
+              <FaFileAlt />
+              <span
+                className={`${sidebarOpen ? "inline" : "hidden lg:inline"}`}
+              >
+                {role === "intern"
+                  ? "My Applications"
+                  : "Applications Received"}
+              </span>
+            </button>
+          </nav>
+        </div>
+      </aside>
+
+      {/* Main content (scrollable independently on desktop) */}
+      <main className="flex-1 p-10 space-y-8 transition-all duration-300 lg:ml-[20%] lg:overflow-y-auto lg:max-h-screen scrollbar-hide">
+        
         {/* ==== Account Info ==== */}
         <div className="bg-white rounded-2xl shadow-md p-6">
           <div className="flex justify-between items-center mb-4">
@@ -315,17 +258,10 @@ export default function Profile() {
           <div className="flex items-center gap-6">
             <div className="relative">
               <img
-                src={profilePic || "https://avatar.iran.liara.run/public"}
+                src={"https://avatar.iran.liara.run/public"}
                 alt="Profile"
                 className="w-28 h-28 rounded-full object-cover border-4 border-indigo-500"
               />
-              {isEditing && (
-                <input
-                  type="file"
-                  className="absolute bottom-0 left-0 opacity-0 w-full h-full cursor-pointer"
-                  onChange={handleFileChange}
-                />
-              )}
             </div>
 
             <div className="flex flex-col gap-2 text-sm w-full">
@@ -393,290 +329,481 @@ export default function Profile() {
 
         {/* ==== Projects / Internship Offers ==== */}
         <div className="bg-white rounded-2xl shadow-md p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">
-              {user?.role === "intern" ? "Projects" : "Internship Offers"}
+          <div className="flex justify-between items-center mb-6 border-b border-gray-200 pb-3">
+            <h3 className="text-xl font-semibold text-indigo-800 tracking-wide">
+              {role === "intern" ? "Projects" : "Internship Offers"}
             </h3>
             <button
-              onClick={
-                user?.role === "intern" ? handleAddProject : handleAddOffer
-              }
-              className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded-lg text-sm"
+              onClick={role === "intern" ? handleAddProject : handleAddOffer}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium"
             >
               + Add
             </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {user?.role === "intern"
-              ? projects.map((p) => (
-                  <div
-                    key={p._id || Math.random()}
-                    className="relative border rounded-lg p-3 bg-white"
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* New Project Form */}
+            {role === "intern" && newProject && (
+              <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
+                <input
+                  className="w-full border-b border-gray-300 mb-3 outline-none bg-transparent text-gray-700"
+                  value={newProject.title}
+                  onChange={(e) =>
+                    setNewProject({ ...newProject, title: e.target.value })
+                  }
+                  placeholder="Project title"
+                />
+                <textarea
+                  className="w-full border border-gray-300 rounded-lg p-3 mb-3 text-gray-700"
+                  value={newProject.description}
+                  onChange={(e) =>
+                    setNewProject({
+                      ...newProject,
+                      description: e.target.value,
+                    })
+                  }
+                  placeholder="Project description"
+                />
+                <input
+                  className="w-full border-b border-gray-300 mb-3 outline-none bg-transparent text-gray-700"
+                  value={newProject.liveDemo}
+                  onChange={(e) =>
+                    setNewProject({ ...newProject, liveDemo: e.target.value })
+                  }
+                  placeholder="Live demo URL"
+                />
+                <div className="flex gap-3 mt-2">
+                  <button
+                    onClick={async () => {
+                      const updatedProjects = [
+                        ...(formData.projects || []),
+                        newProject,
+                      ];
+                      await dispatch(
+                        updateUser({
+                          id: user._id,
+                          updates: { projects: updatedProjects },
+                        })
+                      );
+                      setFormData({ ...formData, projects: updatedProjects });
+                      setNewProject(null);
+                    }}
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm"
                   >
-                    {/* Inline editable fields: title + description + liveDemo */}
-                    <div className="mb-2">
-                      {editingProjects[p._id] ? (
-                        <input
-                          className="w-full border-b outline-none mb-2"
-                          value={p.title || p.name || ""}
-                          onChange={(e) =>
-                            changeProjectField(p._id, "title", e.target.value)
-                          }
-                          placeholder="Project title"
-                        />
-                      ) : (
-                        <h4 className="font-semibold">{p.title || p.name}</h4>
-                      )}
-                      {editingProjects[p._id] ? (
-                        <textarea
-                          className="w-full rounded p-2"
-                          value={p.description || ""}
-                          onChange={(e) =>
-                            changeProjectField(
-                              p._id,
-                              "description",
-                              e.target.value
-                            )
-                          }
-                          placeholder="Description"
-                        />
-                      ) : (
-                        <p className="text-sm text-gray-700">{p.description}</p>
-                      )}
-                      {editingProjects[p._id] ? (
-                        <input
-                          className="w-full border-b outline-none mt-2"
-                          value={p.liveDemo || ""}
-                          onChange={(e) =>
-                            changeProjectField(
-                              p._id,
-                              "liveDemo",
-                              e.target.value
-                            )
-                          }
-                          placeholder="Live demo URL"
-                        />
-                      ) : (
-                        p.liveDemo && (
-                          <a
-                            href={p.liveDemo}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-sm text-indigo-600 hover:underline"
-                          >
-                            Live demo
-                          </a>
-                        )
-                      )}
-                    </div>
-
-                    {/* Original ProjectCard for styling consistency (non-edit view) */}
-                    {!editingProjects[p._id] && <ProjectCard project={p} />}
-
-                    <div className="absolute top-2 right-2 flex gap-2">
-                      {editingProjects[p._id] ? (
-                        <>
-                          <button
-                            onClick={() => handleUpdateProject(p)}
-                            className="text-green-600 hover:text-green-800"
-                          >
-                            <FaSave />
-                          </button>
-                          <button
-                            onClick={() => toggleEditProject(p._id)}
-                            className="text-gray-600 hover:text-gray-800"
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => toggleEditProject(p._id)}
-                            className="text-blue-600 hover:text-blue-800"
-                          >
-                            <FaEdit />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteProject(p._id)}
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <FaTrash />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ))
-              : offers.map((o) => (
-                  <div
-                    key={o._id || Math.random()}
-                    className="relative border rounded-lg p-3 bg-white"
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setNewProject(null)}
+                    className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg text-sm"
                   >
-                    <div className="mb-2">
-                      {editingOffers[o._id] ? (
-                        <input
-                          className="w-full border-b outline-none mb-2"
-                          value={o.title || ""}
-                          onChange={(e) =>
-                            changeOfferField(o._id, "title", e.target.value)
-                          }
-                          placeholder="Offer title"
-                        />
-                      ) : (
-                        <h4 className="font-semibold">{o.title}</h4>
-                      )}
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
 
-                      {editingOffers[o._id] ? (
-                        <input
-                          className="w-full border-b outline-none mb-2"
-                          value={o.location || ""}
-                          onChange={(e) =>
-                            changeOfferField(o._id, "location", e.target.value)
-                          }
-                          placeholder="Location"
-                        />
-                      ) : (
-                        o.location && (
-                          <p className="text-sm text-gray-700">{o.location}</p>
-                        )
+            {/* Existing Projects */}
+            {role === "intern" &&
+              projects.map((p) => (
+                <div
+                  key={p._id || Math.random()}
+                  className="relative bg-gray-50 border border-gray-200 rounded-2xl p-5 shadow-sm"
+                >
+                  {editingProjects[p._id] ? (
+                    <>
+                      <input
+                        className="w-full border-b border-gray-300 mb-3 outline-none bg-transparent text-gray-700"
+                        value={p.title || ""}
+                        onChange={(e) =>
+                          changeProjectField(p._id, "title", e.target.value)
+                        }
+                        placeholder="Project title"
+                      />
+                      <textarea
+                        className="w-full border border-gray-300 rounded-lg p-3 mb-3 text-gray-700"
+                        value={p.description || ""}
+                        onChange={(e) =>
+                          changeProjectField(
+                            p._id,
+                            "description",
+                            e.target.value
+                          )
+                        }
+                        placeholder="Description"
+                      />
+                      <input
+                        className="w-full border-b border-gray-300 mb-3 outline-none bg-transparent text-gray-700"
+                        value={p.liveDemo || ""}
+                        onChange={(e) =>
+                          changeProjectField(p._id, "liveDemo", e.target.value)
+                        }
+                        placeholder="Live demo URL"
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <h4 className="font-semibold text-gray-900">{p.title}</h4>
+                      <p className="text-sm text-gray-700 mt-1">
+                        {p.description}
+                      </p>
+                      {p.liveDemo && (
+                        <a
+                          href={p.liveDemo}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-block mt-3 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg shadow-sm no-underline hover:bg-indigo-500 transition-all"
+                        >
+                          Live Demo
+                        </a>
                       )}
-
-                      {editingOffers[o._id] ? (
-                        <textarea
-                          className="w-full rounded p-2"
-                          value={o.description || ""}
-                          onChange={(e) =>
-                            changeOfferField(
-                              o._id,
-                              "description",
-                              e.target.value
-                            )
-                          }
-                          placeholder="Description"
-                        />
-                      ) : (
-                        <p className="text-sm text-gray-700">{o.description}</p>
-                      )}
-                    </div>
-
-                    {!editingOffers[o._id] && <InternshipOfferCard offer={o} />}
-
-                    <div className="absolute top-2 right-2 flex gap-2">
-                      {editingOffers[o._id] ? (
-                        <>
-                          <button
-                            onClick={() => handleUpdateOffer(o)}
-                            className="text-green-600 hover:text-green-800"
-                          >
-                            <FaSave />
-                          </button>
-                          <button
-                            onClick={() => toggleEditOffer(o._id)}
-                            className="text-gray-600 hover:text-gray-800"
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => toggleEditOffer(o._id)}
-                            className="text-blue-600 hover:text-blue-800"
-                          >
-                            <FaEdit />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteOffer(o._id)}
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <FaTrash />
-                          </button>
-                        </>
-                      )}
-                    </div>
+                    </>
+                  )}
+                  <div className="absolute top-3 right-3 flex gap-3">
+                    {editingProjects[p._id] ? (
+                      <>
+                        <button
+                          onClick={() => handleUpdateProject(p)}
+                          className="text-green-600 hover:text-green-800"
+                        >
+                          <FaSave />
+                        </button>
+                        <button
+                          onClick={() => toggleEditProject(p._id)}
+                          className="text-gray-600 hover:text-gray-800"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => toggleEditProject(p._id)}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          <FaEdit />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteProject(p._id)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <FaTrash />
+                        </button>
+                      </>
+                    )}
                   </div>
-                ))}
+                </div>
+              ))}
+
+            {/* New Offer Form */}
+            {role !== "intern" && newOffer && (
+              <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
+                <input
+                  className="w-full border-b border-gray-300 mb-3 outline-none bg-transparent text-gray-700"
+                  value={newOffer.title}
+                  onChange={(e) =>
+                    setNewOffer({ ...newOffer, title: e.target.value })
+                  }
+                  placeholder="Offer title"
+                />
+                <input
+                  className="w-full border-b border-gray-300 mb-3 outline-none bg-transparent text-gray-700"
+                  value={newOffer.location}
+                  onChange={(e) =>
+                    setNewOffer({ ...newOffer, location: e.target.value })
+                  }
+                  placeholder="Location"
+                />
+                <textarea
+                  className="w-full border border-gray-300 rounded-lg p-3 mb-3 text-gray-700"
+                  value={newOffer.description}
+                  onChange={(e) =>
+                    setNewOffer({ ...newOffer, description: e.target.value })
+                  }
+                  placeholder="Description"
+                />
+                <div className="flex gap-3 mt-2">
+                  <button
+                    onClick={async () => {
+                      const created = await dispatch(
+                        createOffer({ ...newOffer, companyId: user._id })
+                      );
+                      if (createOffer.fulfilled.match(created)) {
+                        setFormData({
+                          ...formData,
+                          offers: [...(formData.offers || []), created.payload],
+                        });
+                      }
+                      setNewOffer(null);
+                    }}
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setNewOffer(null)}
+                    className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Existing Offers */}
+            {role !== "intern" &&
+              offers.map((o) => (
+                <div
+                  key={o._id || Math.random()}
+                  className="relative bg-gray-50 border border-gray-200 rounded-2xl p-5 shadow-sm"
+                >
+                  {editingOffers[o._id] ? (
+                    <>
+                      <input
+                        className="w-full border-b border-gray-300 mb-3 outline-none bg-transparent text-gray-700"
+                        value={o.title || ""}
+                        onChange={(e) =>
+                          changeOfferField(o._id, "title", e.target.value)
+                        }
+                        placeholder="Offer title"
+                      />
+                      <input
+                        className="w-full border-b border-gray-300 mb-3 outline-none bg-transparent text-gray-700"
+                        value={o.location || ""}
+                        onChange={(e) =>
+                          changeOfferField(o._id, "location", e.target.value)
+                        }
+                        placeholder="Location"
+                      />
+                      <textarea
+                        className="w-full border border-gray-300 rounded-lg p-3 mb-3 text-gray-700"
+                        value={o.description || ""}
+                        onChange={(e) =>
+                          changeOfferField(o._id, "description", e.target.value)
+                        }
+                        placeholder="Description"
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <h4 className="font-semibold text-gray-900">{o.title}</h4>
+                      <p className="text-sm text-gray-700 mt-1">{o.location}</p>
+                      <p className="text-sm text-gray-700 mt-1">
+                        {o.description}
+                      </p>
+                    </>
+                  )}
+                  <div className="absolute top-3 right-3 flex gap-3">
+                    {editingOffers[o._id] ? (
+                      <>
+                        <button
+                          onClick={() => handleUpdateOffer(o)}
+                          className="text-green-600 hover:text-green-800"
+                        >
+                          <FaSave />
+                        </button>
+                        <button
+                          onClick={() => toggleEditOffer(o._id)}
+                          className="text-gray-600 hover:text-gray-800"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => toggleEditOffer(o._id)}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          <FaEdit />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteOffer(o._id)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <FaTrash />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
           </div>
         </div>
 
         {/* ==== Education ==== */}
-        {user?.role === "intern" && (
+        {role === "intern" && (
           <div className="bg-white rounded-2xl shadow-md p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">Education</h3>
+            <div className="flex justify-between items-center mb-6 border-b border-gray-200 pb-3">
+              <h3 className="text-xl font-semibold text-indigo-800 tracking-wide">
+                Education
+              </h3>
               <button
                 onClick={handleAddEducation}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded-lg text-sm"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded-lg text-sm font-medium shadow-sm transition"
               >
                 + Add
               </button>
             </div>
-            <div className="space-y-3">
+
+            <div className="space-y-5">
+              {/* New Education Form */}
+              {newEducation && (
+                <div className="border border-indigo-100 rounded-xl p-4 bg-indigo-50/30 shadow-sm">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <input
+                      className="w-full border-b border-indigo-300 focus:border-indigo-500 outline-none bg-transparent py-1 text-sm"
+                      value={newEducation.diploma}
+                      onChange={(e) =>
+                        setNewEducation({
+                          ...newEducation,
+                          diploma: e.target.value,
+                        })
+                      }
+                      placeholder="Diploma / Degree"
+                    />
+                    <input
+                      className="w-full border-b border-indigo-300 focus:border-indigo-500 outline-none bg-transparent py-1 text-sm"
+                      value={newEducation.university}
+                      onChange={(e) =>
+                        setNewEducation({
+                          ...newEducation,
+                          university: e.target.value,
+                        })
+                      }
+                      placeholder="University / School"
+                    />
+                    <input
+                      className="w-full border-b border-indigo-300 focus:border-indigo-500 outline-none bg-transparent py-1 text-sm"
+                      value={newEducation.location}
+                      onChange={(e) =>
+                        setNewEducation({
+                          ...newEducation,
+                          location: e.target.value,
+                        })
+                      }
+                      placeholder="Location"
+                    />
+                    <input
+                      className="w-full border-b border-indigo-300 focus:border-indigo-500 outline-none bg-transparent py-1 text-sm"
+                      value={newEducation.date}
+                      onChange={(e) =>
+                        setNewEducation({
+                          ...newEducation,
+                          date: e.target.value,
+                        })
+                      }
+                      placeholder="Date"
+                    />
+                  </div>
+
+                  <div className="flex gap-2 mt-4 justify-end">
+                    <button
+                      onClick={async () => {
+                        const updated = [
+                          ...(formData.education || []),
+                          newEducation,
+                        ];
+                        await dispatch(
+                          updateUser({
+                            id: user._id,
+                            updates: { education: updated },
+                          })
+                        );
+                        setFormData({ ...formData, education: updated });
+                        setNewEducation(null);
+                      }}
+                      className="bg-green-600 hover:bg-green-500 text-white px-4 py-1.5 rounded-lg text-sm"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => setNewEducation(null)}
+                      className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-1.5 rounded-lg text-sm"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Existing Education Entries */}
               {education.map((ed) => (
                 <div
                   key={ed._id || Math.random()}
-                  className="border border-gray-200 p-3 rounded-lg text-sm relative bg-white"
+                  className="relative bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition p-5"
                 >
-                  <div>
-                    {editingEducation[ed._id] ? (
-                      <>
-                        <input
-                          className="w-full border-b mb-2 outline-none"
-                          value={ed.diploma || ""}
-                          onChange={(e) =>
-                            changeEducationField(
-                              ed._id,
-                              "diploma",
-                              e.target.value
-                            )
-                          }
-                          placeholder="Diploma"
-                        />
-                        <input
-                          className="w-full border-b mb-2 outline-none"
-                          value={ed.university || ""}
-                          onChange={(e) =>
-                            changeEducationField(
-                              ed._id,
-                              "university",
-                              e.target.value
-                            )
-                          }
-                          placeholder="University"
-                        />
-                        <input
-                          className="w-full border-b mb-2 outline-none"
-                          value={ed.location || ""}
-                          onChange={(e) =>
-                            changeEducationField(
-                              ed._id,
-                              "location",
-                              e.target.value
-                            )
-                          }
-                          placeholder="Location"
-                        />
-                        <input
-                          className="w-full border-b mb-2 outline-none"
-                          value={ed.date || ""}
-                          onChange={(e) =>
-                            changeEducationField(ed._id, "date", e.target.value)
-                          }
-                          placeholder="Date"
-                        />
-                      </>
-                    ) : (
-                      <>
-                        <p className="font-semibold">{ed.diploma}</p>
-                        <p>{ed.university}</p>
-                        <p>{ed.location}</p>
-                        <p>{ed.date}</p>
-                      </>
-                    )}
-                  </div>
+                  {editingEducation[ed._id] ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <input
+                        className="w-full border-b border-indigo-300 focus:border-indigo-500 outline-none bg-transparent py-1 text-sm"
+                        value={ed.diploma || ""}
+                        onChange={(e) =>
+                          changeEducationField(
+                            ed._id,
+                            "diploma",
+                            e.target.value
+                          )
+                        }
+                        placeholder="Diploma"
+                      />
+                      <input
+                        className="w-full border-b border-indigo-300 focus:border-indigo-500 outline-none bg-transparent py-1 text-sm"
+                        value={ed.university || ""}
+                        onChange={(e) =>
+                          changeEducationField(
+                            ed._id,
+                            "university",
+                            e.target.value
+                          )
+                        }
+                        placeholder="University"
+                      />
+                      <input
+                        className="w-full border-b border-indigo-300 focus:border-indigo-500 outline-none bg-transparent py-1 text-sm"
+                        value={ed.location || ""}
+                        onChange={(e) =>
+                          changeEducationField(
+                            ed._id,
+                            "location",
+                            e.target.value
+                          )
+                        }
+                        placeholder="Location"
+                      />
+                      <input
+                        className="w-full border-b border-indigo-300 focus:border-indigo-500 outline-none bg-transparent py-1 text-sm"
+                        value={ed.date || ""}
+                        onChange={(e) =>
+                          changeEducationField(ed._id, "date", e.target.value)
+                        }
+                        placeholder="Date"
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      {/* Diploma & Date */}
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-1">
+                        <h4 className="text-lg font-semibold text-gray-800">
+                          {ed.diploma}
+                        </h4>
+                        <span className="text-sm text-indigo-600 font-medium">
+                          {ed.date}
+                        </span>
+                      </div>
 
-                  <div className="absolute top-2 right-2 flex gap-2">
+                      {/* University (left) & Location (right) */}
+                      <div className="flex flex-col md:flex-row md:justify-between md:items-center">
+                        <p className="text-gray-700 font-medium">
+                          {ed.university}
+                        </p>
+                        <p className="text-gray-500 text-sm md:text-right">
+                          {ed.location}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="absolute top-3 right-3 flex gap-3">
                     {editingEducation[ed._id] ? (
                       <>
                         <button
@@ -687,7 +814,7 @@ export default function Profile() {
                         </button>
                         <button
                           onClick={() => toggleEditEducation(ed._id)}
-                          className="text-gray-600 hover:text-gray-800"
+                          className="text-gray-500 hover:text-gray-700"
                         >
                           Cancel
                         </button>
@@ -714,16 +841,16 @@ export default function Profile() {
             </div>
           </div>
         )}
-      </div>
+      </main>
 
-      {/* ==== Right Section ==== */}
-      <div className="w-1/5 bg-indigo-50 p-6 flex flex-col gap-6">
+      {/* Right column - stacks below main on small screens due to flex-col on container */}
+      <aside className="w-full lg:w-1/5 bg-indigo-50 p-6 flex flex-col gap-6">
         <div>
           <h4 className="font-semibold mb-2">Links</h4>
           <div className="flex flex-col gap-2">
-            {["linkedin", "website", "github", "resume"].map(
+            {["linkedin", "website", "github"].map(
               (field) =>
-                (user?.role === "intern" ||
+                (role === "intern" ||
                   field === "linkedin" ||
                   field === "website") && (
                   <div
@@ -737,9 +864,6 @@ export default function Profile() {
                       <FaGlobe className="text-green-700" />
                     )}
                     {field === "github" && <FaGithub />}
-                    {field === "resume" && (
-                      <FaFileAlt className="text-gray-700" />
-                    )}
                     {isEditing ? (
                       <input
                         name={field}
@@ -773,17 +897,20 @@ export default function Profile() {
               name="description"
               value={formData.description || ""}
               onChange={handleChange}
-              className="w-full border border-indigo-300 rounded-lg p-2 text-sm"
+              placeholder="Add a description"
               rows={4}
+              className="w-full border border-indigo-300 rounded-lg p-3 text-sm text-gray-800
+                 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400
+                 transition-all duration-200 bg-white"
             />
           ) : (
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 border border-indigo-200 rounded-lg p-3 bg-white min-h-[4rem]">
               {formData.description || "No description provided."}
             </p>
           )}
         </div>
 
-        {user?.role === "intern" && (
+        {role === "intern" && (
           <div>
             <h4 className="font-semibold mb-2">Skills</h4>
             {isEditing ? (
@@ -813,7 +940,7 @@ export default function Profile() {
             )}
           </div>
         )}
-      </div>
+      </aside>
     </div>
   );
 }
