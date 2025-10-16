@@ -1,7 +1,7 @@
 /** @format */
 
 import React, { useState } from "react";
-import { loginUser } from "../redux/userSlice";
+import { loginUser, getCurrentUser } from "../redux/userSlice";
 import { useDispatch } from "react-redux";
 import { useNavigate, Link } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -23,6 +23,7 @@ export default function Login() {
     const resultAction = await dispatch(loginUser(login));
 
     if (loginUser.fulfilled.match(resultAction)) {
+      await dispatch(getCurrentUser());
       navigate("/profile");
     } else {
       setErrorMsg(resultAction.payload?.msg || resultAction.payload || "Login failed");
