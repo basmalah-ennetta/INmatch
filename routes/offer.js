@@ -25,6 +25,17 @@ Router.get("/", async (req, res) => {
   }
 });
 
+// === GET Offers by Company ID ===
+Router.get("/company/:companyId", async (req, res) => {
+  try {
+    const offers = await Offer.find({ companyId: req.params.companyId }).sort({ createdAt: -1 });
+    res.status(200).send({ msg: "Offers by company", offers });
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
+
+
 // === GET Offer by ID ===
 Router.get("/:id", async (req, res) => {
   try {

@@ -5,7 +5,12 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import "./Profile.css";
 import { updateUser, getCurrentUser } from "../redux/userSlice";
-import { createOffer, updateOffer, deleteOffer } from "../redux/offerSlice";
+import {
+  createOffer,
+  updateOffer,
+  deleteOffer,
+  getOffersByCompany,
+} from "../redux/offerSlice";
 import {
   FaLinkedin,
   FaGlobe,
@@ -18,9 +23,17 @@ import {
   FaFileAlt,
 } from "react-icons/fa";
 
-export default function Profile() {
-  const { user } = useSelector((state) => state.user);
+export default function Profile({ ping, setPing }) {
+  const user = useSelector((state) => state.user?.user);
+  const offersList = useSelector((state) => state.offer?.offers);
+  const companyOffers = Array.isArray(offersList)
+    ? offersList.filter((offer) => offer.companyId === user?._id)
+    : [];
+
   const dispatch = useDispatch();
+
+  console.log("user", user);
+  console.log("offersList", offersList);
 
   const [formData, setFormData] = useState({});
   const [isEditing, setIsEditing] = useState(false);
@@ -29,6 +42,7 @@ export default function Profile() {
   const [editingProjects, setEditingProjects] = useState({});
   const [editingEducation, setEditingEducation] = useState({});
   const [editingOffers, setEditingOffers] = useState({});
+  const [offerEdits, setOfferEdits] = useState({}); // store edits temporarily
 
   const [newProject, setNewProject] = useState(null);
   const [newEducation, setNewEducation] = useState(null);
@@ -38,13 +52,19 @@ export default function Profile() {
 
   useEffect(() => {
     dispatch(getCurrentUser());
-  }, [dispatch]);
+  }, [dispatch, ping]);
 
   const role = formData.role || user?.role;
 
   useEffect(() => {
     if (user) setFormData(user);
   }, [user]);
+
+  useEffect(() => {
+    if (user?._id) {
+      dispatch(getOffersByCompany(user._id));
+    }
+  }, [dispatch, user, ping]);
 
   const handleChange = (e) =>
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -119,29 +139,47 @@ export default function Profile() {
   };
 
   // ===== OFFERS =====
-  const handleAddOffer = () =>
-    setNewOffer({ title: "", description: "", location: "" });
-  const toggleEditOffer = (id) =>
-    setEditingOffers((prev) => ({ ...prev, [id]: !prev[id] }));
+
+  const toggleEditOffer = (offer) => {
+    setEditingOffers((prev) => ({ ...prev, [offer._id]: !prev[offer._id] }));
+    setOfferEdits((prev) => ({ ...prev, [offer._id]: { ...offer } }));
+  };
+
   const changeOfferField = (id, field, value) => {
-    const updated = formData.offers.map((o, i) =>
-      o._id === id || i === id ? { ...o, [field]: value } : o
-    );
-    setFormData({ ...formData, offers: updated });
+    setOfferEdits((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], [field]: value },
+    }));
   };
-  const handleUpdateOffer = async (offer) => {
-    await dispatch(updateOffer({ id: offer._id, updates: offer }));
-    toggleEditOffer(offer._id);
+  // === Handlers for Offers ===
+  const handleAddNewOffer = () =>
+    setNewOffer({ title: "", description: "", location: "", payment: "", type: "", duration: "" });
+
+  const handleSaveNewOffer = async () => {
+    if (!user || !newOffer) return;
+    await dispatch(createOffer({ ...newOffer, companyId: user._id }));
+    setNewOffer(null);
+    setPing((prev) => !prev); // refresh offers list
   };
-  const handleDeleteOffer = async (id) => {
+
+  const saveOffer = async (id) => {
+    await dispatch(updateOffer({ id, updates: offerEdits[id] }));
+    setEditingOffers((prev) => ({ ...prev, [id]: false }));
+    setOfferEdits((prev) => {
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
+    setPing((prev) => !prev); // refresh list
+  };
+
+  const handleDeleteOfferClick = async (id) => {
     await dispatch(deleteOffer(id));
-    const updated = formData.offers.filter((o) => o._id !== id);
-    setFormData({ ...formData, offers: updated });
+    setPing((prev) => !prev); // refresh after deletion
   };
 
   const projects = formData.projects || [];
   const education = formData.education || [];
-  const offers = formData.offers || [];
 
   const handleNavClick = (path) => {
     if (path) navigate(path);
@@ -235,7 +273,6 @@ export default function Profile() {
 
       {/* Main content (scrollable independently on desktop) */}
       <main className="flex-1 p-10 space-y-8 transition-all duration-300 lg:ml-[20%] lg:overflow-y-auto lg:max-h-screen scrollbar-hide">
-        
         {/* ==== Account Info ==== */}
         <div className="bg-white rounded-2xl shadow-md p-6">
           <div className="flex justify-between items-center mb-4">
@@ -334,7 +371,7 @@ export default function Profile() {
               {role === "intern" ? "Projects" : "Internship Offers"}
             </h3>
             <button
-              onClick={role === "intern" ? handleAddProject : handleAddOffer}
+              onClick={role === "intern" ? handleAddProject : handleAddNewOffer}
               className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium"
             >
               + Add
@@ -513,6 +550,30 @@ export default function Profile() {
                   }
                   placeholder="Location"
                 />
+                <input
+                  className="w-full border-b border-gray-300 mb-3 outline-none bg-transparent text-gray-700"
+                  value={newOffer.duration || ""}
+                  onChange={(e) =>
+                    setNewOffer({ ...newOffer, duration: e.target.value })
+                  }
+                  placeholder="Duration: (e.g., 6 months)"
+                />
+                <input
+                  className="w-full border-b border-gray-300 mb-3 outline-none bg-transparent text-gray-700"
+                  value={newOffer.type || ""}
+                  onChange={(e) =>
+                    setNewOffer({ ...newOffer, type: e.target.value })
+                  }
+                  placeholder="Type (e.g., Remote/ Hybrid/ in-office)"
+                />
+                <input
+                  className="w-full border-b border-gray-300 mb-3 outline-none bg-transparent text-gray-700"
+                  value={newOffer.payment || ""}
+                  onChange={(e) =>
+                    setNewOffer({ ...newOffer, payment: e.target.value })
+                  }
+                  placeholder="Payment (e.g.,$1000/month )"
+                />
                 <textarea
                   className="w-full border border-gray-300 rounded-lg p-3 mb-3 text-gray-700"
                   value={newOffer.description}
@@ -523,18 +584,7 @@ export default function Profile() {
                 />
                 <div className="flex gap-3 mt-2">
                   <button
-                    onClick={async () => {
-                      const created = await dispatch(
-                        createOffer({ ...newOffer, companyId: user._id })
-                      );
-                      if (createOffer.fulfilled.match(created)) {
-                        setFormData({
-                          ...formData,
-                          offers: [...(formData.offers || []), created.payload],
-                        });
-                      }
-                      setNewOffer(null);
-                    }}
+                    onClick={handleSaveNewOffer}
                     className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm"
                   >
                     Save
@@ -550,83 +600,125 @@ export default function Profile() {
             )}
 
             {/* Existing Offers */}
-            {role !== "intern" &&
-              offers.map((o) => (
-                <div
-                  key={o._id || Math.random()}
-                  className="relative bg-gray-50 border border-gray-200 rounded-2xl p-5 shadow-sm"
-                >
+            {companyOffers.map((o) => (
+              <div
+                key={o._id}
+                className="relative bg-gray-50 border border-gray-200 rounded-2xl p-5 shadow-sm"
+              >
+                {editingOffers[o._id] ? (
+                  <>
+                    <input
+                      className="w-full border-b border-gray-300 mb-3 outline-none bg-transparent text-gray-700"
+                      value={offerEdits[o._id]?.title || ""}
+                      onChange={(e) =>
+                        changeOfferField(o._id, "title", e.target.value)
+                      }
+                      placeholder="Offer title"
+                    />
+                    <input
+                      className="w-full border-b border-gray-300 mb-3 outline-none bg-transparent text-gray-700"
+                      value={offerEdits[o._id]?.location || ""}
+                      onChange={(e) =>
+                        changeOfferField(o._id, "location", e.target.value)
+                      }
+                      placeholder="Location"
+                    />
+                    <input
+                      className="w-full border-b border-gray-300 mb-3 outline-none bg-transparent text-gray-700"
+                      value={offerEdits[o._id]?.duration || ""}
+                      onChange={(e) =>
+                        changeOfferField(o._id, "duration", e.target.value)
+                      }
+                      placeholder="Duration (e.g., 2 months/ 3 moths/ 1 year)"
+                    />
+                    <input
+                      className="w-full border-b border-gray-300 mb-3 outline-none bg-transparent text-gray-700"
+                      value={offerEdits[o._id]?.type || ""}
+                      onChange={(e) =>
+                        changeOfferField(o._id, "type", e.target.value)
+                      }
+                      placeholder="Type (e.g., Internship / Full-time)"
+                    />
+                    <input
+                      className="w-full border-b border-gray-300 mb-3 outline-none bg-transparent text-gray-700"
+                      value={offerEdits[o._id]?.payment || ""}
+                      onChange={(e) =>
+                        changeOfferField(o._id, "payment", e.target.value)
+                      }
+                      placeholder="Payment (e.g., $1000/month)"
+                    />
+                    <textarea
+                      className="w-full border border-gray-300 rounded-lg p-3 mb-3 text-gray-700"
+                      value={offerEdits[o._id]?.description || ""}
+                      onChange={(e) =>
+                        changeOfferField(o._id, "description", e.target.value)
+                      }
+                      placeholder="Description"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <h4 className="font-semibold text-gray-900">{o.title}</h4>
+                    {o.location && (
+                      <p className="text-sm text-gray-700 mt-1">
+                        <span className="font-medium">Location:</span>{o.location}
+                      </p>
+                    )}
+                    {o.type && (
+                      <p className="text-sm text-gray-700 mt-1">
+                        <span className="font-medium">Type:</span> {o.type}
+                      </p>
+                    )}
+                    {o.duration && (
+                      <p className="text-sm text-gray-700 mt-1">
+                        <span className="font-medium">Duration:</span> {o.duration}
+                      </p>
+                    )}
+                    {o.payment && (
+                      <p className="text-sm text-gray-700 mt-1">
+                        <span className="font-medium">Payment:</span>{o.payment}
+                      </p>
+                    )}
+                    <p className="text-sm text-gray-700 mt-1">
+                      {o.description}
+                    </p>
+                  </>
+                )}
+                <div className="absolute top-3 right-3 flex gap-3">
                   {editingOffers[o._id] ? (
                     <>
-                      <input
-                        className="w-full border-b border-gray-300 mb-3 outline-none bg-transparent text-gray-700"
-                        value={o.title || ""}
-                        onChange={(e) =>
-                          changeOfferField(o._id, "title", e.target.value)
-                        }
-                        placeholder="Offer title"
-                      />
-                      <input
-                        className="w-full border-b border-gray-300 mb-3 outline-none bg-transparent text-gray-700"
-                        value={o.location || ""}
-                        onChange={(e) =>
-                          changeOfferField(o._id, "location", e.target.value)
-                        }
-                        placeholder="Location"
-                      />
-                      <textarea
-                        className="w-full border border-gray-300 rounded-lg p-3 mb-3 text-gray-700"
-                        value={o.description || ""}
-                        onChange={(e) =>
-                          changeOfferField(o._id, "description", e.target.value)
-                        }
-                        placeholder="Description"
-                      />
+                      <button
+                        onClick={() => saveOffer(o._id)}
+                        className="text-green-600 hover:text-green-800"
+                      >
+                        <FaSave />
+                      </button>
+                      <button
+                        onClick={() => toggleEditOffer(o._id)}
+                        className="text-gray-600 hover:text-gray-800"
+                      >
+                        Cancel
+                      </button>
                     </>
                   ) : (
                     <>
-                      <h4 className="font-semibold text-gray-900">{o.title}</h4>
-                      <p className="text-sm text-gray-700 mt-1">{o.location}</p>
-                      <p className="text-sm text-gray-700 mt-1">
-                        {o.description}
-                      </p>
+                      <button
+                        onClick={() => toggleEditOffer(o._id)}
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        <FaEdit />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteOfferClick(o._id)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <FaTrash />
+                      </button>
                     </>
                   )}
-                  <div className="absolute top-3 right-3 flex gap-3">
-                    {editingOffers[o._id] ? (
-                      <>
-                        <button
-                          onClick={() => handleUpdateOffer(o)}
-                          className="text-green-600 hover:text-green-800"
-                        >
-                          <FaSave />
-                        </button>
-                        <button
-                          onClick={() => toggleEditOffer(o._id)}
-                          className="text-gray-600 hover:text-gray-800"
-                        >
-                          Cancel
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => toggleEditOffer(o._id)}
-                          className="text-blue-600 hover:text-blue-800"
-                        >
-                          <FaEdit />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteOffer(o._id)}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          <FaTrash />
-                        </button>
-                      </>
-                    )}
-                  </div>
                 </div>
-              ))}
+              </div>
+            ))}
           </div>
         </div>
 

@@ -11,23 +11,32 @@ export const createOffer = createAsyncThunk(
   "offer/create",
   async (offerData, { rejectWithValue }) => {
     try {
-      const res = await axios.post(API_URL, offerData);
+      const res = await axios.post(`${API_URL}/newOffer`, offerData);
       return res.data; // backend returns the created offer object
     } catch (error) {
-      return rejectWithValue(error.res?.data || "Failed to create offer");
+      return rejectWithValue(error.response?.data || "Failed to create offer");
     }
   }
 );
 
 // Get all offers
-export const getAllOffers = createAsyncThunk(
-  "offer/getAll",
-  async (_, { rejectWithValue }) => {
+export const getAllOffers = createAsyncThunk("offer/getAll", async () => {
+  try {
+    const res = await axios.get(API_URL);
+    return res.data; // backend returns array of offers
+  } catch (error) {
+    console.log(error);
+  }
+});
+
+export const getOffersByCompany = createAsyncThunk(
+  "offer/getByCompany",
+  async (companyId, { rejectWithValue }) => {
     try {
-      const res = await axios.get(API_URL);
-      return res.data; // backend returns array of offers
-    } catch (error) {
-      return rejectWithValue(error.res?.data || "Failed to fetch offers");
+      const res = await axios.get(`${API_URL}/company/${companyId}`);
+      return res.data.offers; // because backend sends { offers: [...] }
+    } catch (err) {
+      return rejectWithValue(err.response.data);
     }
   }
 );
@@ -68,13 +77,7 @@ const initialState = {
 const offerSlice = createSlice({
   name: "offer",
   initialState,
-  reducers: {
-    clearOffers: (state) => {
-      state.offers = [];
-      state.status = null;
-      state.error = null;
-    },
-  },
+  reducers: {},
   extraReducers: (builder) => {
     builder
       // ===== CREATE =====
@@ -84,7 +87,7 @@ const offerSlice = createSlice({
       })
       .addCase(createOffer.fulfilled, (state, action) => {
         state.status = "success";
-        state.offers.push(action.payload);
+        state.offer = action.payload.offer;
       })
       .addCase(createOffer.rejected, (state, action) => {
         state.status = "fail";
@@ -98,11 +101,25 @@ const offerSlice = createSlice({
       })
       .addCase(getAllOffers.fulfilled, (state, action) => {
         state.status = "success";
-        state.offers = action.payload.offers;
+        state.offers = action.payload.offers || [];
       })
       .addCase(getAllOffers.rejected, (state, action) => {
         state.status = "fail";
-        state.offers = [];
+        state.error = action.payload;
+      })
+
+      // ===== GET By Company =====
+      .addCase(getOffersByCompany.pending, (state) => {
+        state.status = "pending";
+        state.error = null;
+      })
+      .addCase(getOffersByCompany.fulfilled, (state, action) => {
+        state.status = "success";
+        state.offers = action.payload;
+      })
+
+      .addCase(getOffersByCompany.rejected, (state, action) => {
+        state.status = "fail";
         state.error = action.payload;
       })
 
@@ -113,8 +130,7 @@ const offerSlice = createSlice({
       })
       .addCase(updateOffer.fulfilled, (state, action) => {
         state.status = "success";
-        const index = state.offers.findIndex((o) => o._id === action.payload._id);
-        if (index !== -1) state.offers[index] = action.payload;
+        state.offers = action.payload;
       })
       .addCase(updateOffer.rejected, (state, action) => {
         state.status = "fail";
@@ -128,7 +144,7 @@ const offerSlice = createSlice({
       })
       .addCase(deleteOffer.fulfilled, (state, action) => {
         state.status = "success";
-        state.offers = state.offers.filter((o) => o._id !== action.payload);
+        state.offers = action.payload.data;
       })
       .addCase(deleteOffer.rejected, (state, action) => {
         state.status = "fail";

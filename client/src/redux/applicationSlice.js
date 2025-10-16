@@ -11,7 +11,7 @@ export const createApplication = createAsyncThunk(
   "application/create",
   async (appData, { rejectWithValue }) => {
     try {
-      const res = await axios.post(API_URL, appData);
+      const res = await axios.post(`${API_URL}/newapplication`, appData);
       return res.data;
     } catch (error) {
       return rejectWithValue(
@@ -90,7 +90,7 @@ const applicationSlice = createSlice({
         state.error = action.payload;
       })
 
-      // ===== COMPANY GET =====
+      // ===== GET ALL =====
       .addCase(getApplications.pending, (state) => {
         state.status = "pending";
         state.error = null;

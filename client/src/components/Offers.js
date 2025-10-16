@@ -1,6 +1,7 @@
 /** @format */
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { createApplication } from "../redux/applicationSlice";
 import { getAllOffers } from "../redux/offerSlice";
 import {
   FaMapMarkerAlt,
@@ -12,12 +13,41 @@ import {
   FaSortAmountDown,
   FaTimesCircle,
 } from "react-icons/fa";
-import { motion, AnimatePresence } from "framer-motion";
 
-const Offers = () => {
+export default function Offers({ ping, setPing }) {
   const dispatch = useDispatch();
-  const { offers = [], status } = useSelector((state) => state.offer);
 
+  // ===== Redux State =====
+  const offers = useSelector((state) => state.offer?.offers);
+  const status = useSelector((state) => state.offer?.status);
+  // ===== Inside Offers component =====
+  const currentUser = useSelector((state) => state.user?.user); // get current intern
+  const allapplications = useSelector(
+    (state) => state.application?.applicationList
+  );
+
+  // Offers the intern has already applied to
+  const appliedOffers = allapplications
+    .filter((app) => app.internId === currentUser?._id)
+    .map((app) => app.offerId);
+
+  const handleApply = async (offer) => {
+    if (!currentUser) {
+      alert("Please log in to apply.");
+      return;
+    }
+
+    const applicationData = {
+      offerId: offer._id,
+      internId: currentUser._id,
+      companyId: offer.companyId, // ensure your offer has companyId
+    };
+
+    await dispatch(createApplication(applicationData));
+    setPing((prev) => !prev); // refresh offers or applications if needed
+  };
+
+  // ===== Local State =====
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     search: "",
@@ -28,12 +58,14 @@ const Offers = () => {
     sort: "newest",
   });
 
+  // ===== Fetch Offers on Mount or Ping Change =====
   useEffect(() => {
     dispatch(getAllOffers());
-  }, [dispatch]);
+  }, [ping, dispatch]);
 
+  // ===== Handlers =====
   const handleFilterChange = (e) =>
-    setFilters((s) => ({ ...s, [e.target.name]: e.target.value }));
+    setFilters((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
   const clearFilters = () =>
     setFilters({
@@ -45,6 +77,7 @@ const Offers = () => {
       sort: "newest",
     });
 
+  // ===== Utility Functions =====
   const derivePaymentKind = (payment) => {
     const raw = (payment || "").toString().trim().toLowerCase();
     if (raw === "" || raw === "unpaid" || /(^unpaid\b)|\bno pay\b/.test(raw))
@@ -88,6 +121,7 @@ const Offers = () => {
     return `Posted ${diffDays} days ago`;
   };
 
+  // ===== Filtering & Sorting Logic =====
   const filteredOffers = (offers || [])
     .filter((offer) => {
       const title = (offer.title || "").toLowerCase();
@@ -133,6 +167,7 @@ const Offers = () => {
       return 0;
     });
 
+  // ===== Render =====
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
       <div className="max-w-6xl mx-auto bg-white rounded-2xl shadow-lg p-8 border border-gray-200">
@@ -143,7 +178,7 @@ const Offers = () => {
           </h2>
           <div className="relative mb-4">
             <button
-              onClick={() => setShowFilters((p) => !p)}
+              onClick={() => setShowFilters((prev) => !prev)}
               className="flex items-center gap-2 bg-indigo-500 text-white px-2 py-2 rounded-lg hover:bg-indigo-600 transition"
             >
               <FaFilter />
@@ -155,100 +190,99 @@ const Offers = () => {
           </div>
         </div>
 
-        {/* Toggleable Filter Panel */}
-        <AnimatePresence>
-          {showFilters && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.25 }}
-              className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-6 shadow-sm"
-            >
-              <div className="flex flex-wrap gap-3">
-                <div className="relative flex-1 min-w-[180px]">
-                  <FaSearch className="absolute top-3 left-3 text-gray-400" />
-                  <input
-                    type="text"
-                    name="search"
-                    placeholder="Search..."
-                    value={filters.search}
-                    onChange={handleFilterChange}
-                    className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
-                  />
-                </div>
-
+        {/* Filter Panel */}
+        {showFilters && (
+          <div
+            className={`bg-gray-50 border border-gray-200 rounded-xl p-4 mb-6 shadow-sm transform transition-all duration-300 ease-out
+      ${
+        showFilters
+          ? "opacity-100 translate-y-0"
+          : "opacity-0 -translate-y-2 pointer-events-none"
+      }`}
+          >
+            <div className="flex flex-wrap gap-3">
+              <div className="relative flex-1 min-w-[180px]">
+                <FaSearch className="absolute top-3 left-3 text-gray-400" />
                 <input
                   type="text"
-                  name="location"
-                  placeholder="Location..."
-                  value={filters.location}
+                  name="search"
+                  placeholder="Search..."
+                  value={filters.search}
                   onChange={handleFilterChange}
-                  className="flex-1 min-w-[150px] border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
+                  className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
                 />
-
-                <select
-                  name="payment"
-                  value={filters.payment}
-                  onChange={handleFilterChange}
-                  className="flex-1 min-w-[130px] border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
-                >
-                  <option value="">All Payments</option>
-                  <option value="paid">Paid</option>
-                  <option value="unpaid">Unpaid</option>
-                </select>
-
-                <select
-                  name="type"
-                  value={filters.type}
-                  onChange={handleFilterChange}
-                  className="flex-1 min-w-[130px] border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
-                >
-                  <option value="">All Work Types</option>
-                  <option value="remote">Remote</option>
-                  <option value="hybrid">Hybrid</option>
-                  <option value="in-office">In-office</option>
-                </select>
-
-                <select
-                  name="duration"
-                  value={filters.duration}
-                  onChange={handleFilterChange}
-                  className="flex-1 min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
-                >
-                  <option value="">All Durations</option>
-                  <option value="3">3 months</option>
-                  <option value="6">6 months</option>
-                  <option value="year">1 year</option>
-                  <option value="undisclosed">Undisclosed</option>
-                </select>
-
-                <div className="relative flex-1 min-w-[140px]">
-                  <FaSortAmountDown className="absolute top-3 left-3 text-gray-400" />
-                  <select
-                    name="sort"
-                    value={filters.sort}
-                    onChange={handleFilterChange}
-                    className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2 bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
-                  >
-                    <option value="newest">Newest</option>
-                    <option value="oldest">Oldest</option>
-                  </select>
-                </div>
-
-                <button
-                  onClick={clearFilters}
-                  className="flex items-center gap-2 bg-gray-200 text-gray-700 hover:bg-gray-300 transition px-4 py-2 rounded-lg text-sm"
-                >
-                  <FaTimesCircle />
-                  Clear
-                </button>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
-        {/* OFFERS LIST */}
+              <input
+                type="text"
+                name="location"
+                placeholder="Location..."
+                value={filters.location}
+                onChange={handleFilterChange}
+                className="flex-1 min-w-[150px] border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
+              />
+
+              <select
+                name="payment"
+                value={filters.payment}
+                onChange={handleFilterChange}
+                className="flex-1 min-w-[130px] border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
+              >
+                <option value="">All Payments</option>
+                <option value="paid">Paid</option>
+                <option value="unpaid">Unpaid</option>
+              </select>
+
+              <select
+                name="type"
+                value={filters.type}
+                onChange={handleFilterChange}
+                className="flex-1 min-w-[130px] border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
+              >
+                <option value="">All Work Types</option>
+                <option value="remote">Remote</option>
+                <option value="hybrid">Hybrid</option>
+                <option value="in-office">In-office</option>
+              </select>
+
+              <select
+                name="duration"
+                value={filters.duration}
+                onChange={handleFilterChange}
+                className="flex-1 min-w-[140px] border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
+              >
+                <option value="">All Durations</option>
+                <option value="3">3 months</option>
+                <option value="6">6 months</option>
+                <option value="year">1 year</option>
+                <option value="undisclosed">Undisclosed</option>
+              </select>
+
+              <div className="relative flex-1 min-w-[140px]">
+                <FaSortAmountDown className="absolute top-3 left-3 text-gray-400" />
+                <select
+                  name="sort"
+                  value={filters.sort}
+                  onChange={handleFilterChange}
+                  className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2 bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
+                >
+                  <option value="newest">Newest</option>
+                  <option value="oldest">Oldest</option>
+                </select>
+              </div>
+
+              <button
+                onClick={clearFilters}
+                className="flex items-center gap-2 bg-gray-200 text-gray-700 hover:bg-gray-300 transition px-4 py-2 rounded-lg text-sm"
+              >
+                <FaTimesCircle />
+                Clear
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Offers Grid */}
         {status === "pending" ? (
           <p className="text-gray-500 text-center mt-8">Loading offers...</p>
         ) : filteredOffers.length > 0 ? (
@@ -260,9 +294,9 @@ const Offers = () => {
               return (
                 <div
                   key={offer._id}
-                  className="relative border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition p-5 bg-white"
+                  className="relative border border-gray-200 rounded-xl shadow-sm transform transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:scale-[1.02] p-5 bg-white"
                 >
-                  {/* TYPE BADGE TOP-RIGHT */}
+                  {/* Type Badge */}
                   <span
                     className={`absolute top-3 right-3 px-4 py-1.5 rounded-full text-sm font-semibold shadow-sm
                       ${
@@ -280,7 +314,10 @@ const Offers = () => {
                     {offer.title}
                   </h3>
 
-                  <p className="text-gray-600 mb-3 line-clamp-3">
+                  <p
+                    className="text-gray-600 mb-3 line-clamp-3"
+                    style={{ minHeight: "4.5rem", maxHeight: "4.5rem" }}
+                  >
                     {offer.description}
                   </p>
 
@@ -312,8 +349,19 @@ const Offers = () => {
                   </div>
 
                   <div className="mt-4">
-                    <button className="w-full bg-indigo-500 text-white py-2 rounded-lg hover:bg-indigo-600 transition">
-                      Apply Now
+                    <button
+                      onClick={() => handleApply(offer)}
+                      disabled={appliedOffers.includes(offer._id)}
+                      className={`w-full py-2 rounded-lg font-medium transition 
+      ${
+        appliedOffers.includes(offer._id)
+          ? "bg-gray-200 text-gray-600 cursor-not-allowed shadow-none"
+          : "bg-indigo-500 text-white hover:bg-indigo-600 shadow-md"
+      }`}
+                    >
+                      {appliedOffers.includes(offer._id)
+                        ? "Applied"
+                        : "Apply Now"}
                     </button>
                   </div>
                 </div>
@@ -326,6 +374,4 @@ const Offers = () => {
       </div>
     </div>
   );
-};
-
-export default Offers;
+}

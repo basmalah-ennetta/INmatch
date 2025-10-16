@@ -42,9 +42,9 @@ function App() {
         {/* Applications page */}
         <Route path="/applications" element={<Applications ping={ping} setPing={setPing} />} />
         {/* Profile page */}
-        <Route path="/profile" element={<Profile />} />
+        <Route path="/profile" element={<Profile ping={ping} setPing={setPing} />} />
         {/* Offers page */}
-        <Route path="/offers" element={<Offers />} />
+        <Route path="/offers" element={<Offers ping={ping} setPing={setPing} />} />
       </Routes>
       <Footer />
     </div>
