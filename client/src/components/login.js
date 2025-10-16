@@ -25,7 +25,7 @@ export default function Login() {
     if (loginUser.fulfilled.match(resultAction)) {
       navigate("/profile");
     } else {
-      setErrorMsg(resultAction.payload || "Login failed");
+      setErrorMsg(resultAction.payload?.msg || resultAction.payload || "Login failed");
     }
   };
 

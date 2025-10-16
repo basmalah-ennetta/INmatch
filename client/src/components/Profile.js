@@ -1,7 +1,6 @@
 /** @format */
 
 import React, { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import "./Profile.css";
 import { updateUser, getCurrentUser } from "../redux/userSlice";
@@ -18,9 +17,6 @@ import {
   FaTrash,
   FaEdit,
   FaSave,
-  FaBars,
-  FaUser,
-  FaFileAlt,
 } from "react-icons/fa";
 
 export default function Profile({ ping, setPing }) {
@@ -48,7 +44,6 @@ export default function Profile({ ping, setPing }) {
   const [newEducation, setNewEducation] = useState(null);
   const [newOffer, setNewOffer] = useState(null);
 
-  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
     dispatch(getCurrentUser());
@@ -81,8 +76,6 @@ export default function Profile({ ping, setPing }) {
       setIsSaving(false);
     }
   };
-  const location = useLocation();
-  const navigate = useNavigate();
 
   // ===== PROJECTS =====
   const handleAddProject = () =>
@@ -153,7 +146,14 @@ export default function Profile({ ping, setPing }) {
   };
   // === Handlers for Offers ===
   const handleAddNewOffer = () =>
-    setNewOffer({ title: "", description: "", location: "", payment: "", type: "", duration: "" });
+    setNewOffer({
+      title: "",
+      description: "",
+      location: "",
+      payment: "",
+      type: "",
+      duration: "",
+    });
 
   const handleSaveNewOffer = async () => {
     if (!user || !newOffer) return;
@@ -181,98 +181,11 @@ export default function Profile({ ping, setPing }) {
   const projects = formData.projects || [];
   const education = formData.education || [];
 
-  const handleNavClick = (path) => {
-    if (path) navigate(path);
-    setSidebarOpen(false);
-  };
 
   return (
-    <div className="min-h-screen bg-[#f5f7ff] text-gray-800 flex flex-col lg:flex-row">
-      {/* Mobile Top Bar (hamburger) */}
-      <div className="lg:hidden flex items-center justify-between bg-indigo-900 text-white px-4 py-3">
-        <h1 className="text-lg font-bold">PROFILE</h1>
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="text-2xl"
-        >
-          <FaBars />
-        </button>
-      </div>
-
-      {/* Sidebar */}
-      {sidebarOpen && (
-        <div
-          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      <aside
-        className={`bg-indigo-900 text-white flex flex-col py-10 space-y-6 transition-all duration-300 z-50
-          ${
-            sidebarOpen
-              ? "fixed left-0 top-0 h-full w-4/5 sm:w-1/2 translate-x-0 opacity-100"
-              : "fixed -left-full top-0 h-full w-4/5 sm:w-1/2 translate-x-0 opacity-0"
-          }
-          lg:static lg:w-1/5 lg:translate-x-0 lg:opacity-100 lg:h-screen lg:fixed`}
-      >
-        <div className="px-4 overflow-y-auto">
-          <div className="flex items-center justify-between lg:justify-center">
-            <h1
-              className={`text-2xl font-bold text-center transition-opacity duration-300 ${
-                sidebarOpen ? "opacity-100" : "opacity-0 lg:opacity-100"
-              }`}
-            >
-              PROFILE
-            </h1>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="lg:hidden text-xl"
-              aria-label="Close menu"
-            >
-              ✕
-            </button>
-          </div>
-
-          <nav className="flex flex-col gap-3 text-sm font-medium w-full mt-6">
-            <button
-              onClick={() => handleNavClick("/profile")}
-              className={`p-2 rounded-lg flex items-center gap-2 transition-all ${
-                location.pathname === "/profile"
-                  ? "bg-indigo-700 text-white"
-                  : "hover:bg-indigo-700"
-              }`}
-            >
-              <FaUser />
-              <span
-                className={`${sidebarOpen ? "inline" : "hidden lg:inline"}`}
-              >
-                Account Information
-              </span>
-            </button>
-            <button
-              onClick={() => handleNavClick("/applications")}
-              className={`p-2 rounded-lg flex items-center gap-2 transition-all ${
-                location.pathname === "/applications"
-                  ? "bg-indigo-700 text-white"
-                  : "hover:bg-indigo-700"
-              }`}
-            >
-              <FaFileAlt />
-              <span
-                className={`${sidebarOpen ? "inline" : "hidden lg:inline"}`}
-              >
-                {role === "intern"
-                  ? "My Applications"
-                  : "Applications Received"}
-              </span>
-            </button>
-          </nav>
-        </div>
-      </aside>
-
+    <div className="min-h-screen bg-indigo-50 text-gray-800 flex flex-col lg:flex-row">
       {/* Main content (scrollable independently on desktop) */}
-      <main className="flex-1 p-10 space-y-8 transition-all duration-300 lg:ml-[20%] lg:overflow-y-auto lg:max-h-screen scrollbar-hide">
+      <main className="flex-1 p-10 space-y-8 overflow-y-auto">
         {/* ==== Account Info ==== */}
         <div className="bg-white rounded-2xl shadow-md p-6">
           <div className="flex justify-between items-center mb-4">
@@ -661,7 +574,8 @@ export default function Profile({ ping, setPing }) {
                     <h4 className="font-semibold text-gray-900">{o.title}</h4>
                     {o.location && (
                       <p className="text-sm text-gray-700 mt-1">
-                        <span className="font-medium">Location:</span>{o.location}
+                        <span className="font-medium">Location:</span>
+                        {o.location}
                       </p>
                     )}
                     {o.type && (
@@ -671,12 +585,14 @@ export default function Profile({ ping, setPing }) {
                     )}
                     {o.duration && (
                       <p className="text-sm text-gray-700 mt-1">
-                        <span className="font-medium">Duration:</span> {o.duration}
+                        <span className="font-medium">Duration:</span>{" "}
+                        {o.duration}
                       </p>
                     )}
                     {o.payment && (
                       <p className="text-sm text-gray-700 mt-1">
-                        <span className="font-medium">Payment:</span>{o.payment}
+                        <span className="font-medium">Payment:</span>
+                        {o.payment}
                       </p>
                     )}
                     <p className="text-sm text-gray-700 mt-1">
@@ -936,7 +852,7 @@ export default function Profile({ ping, setPing }) {
       </main>
 
       {/* Right column - stacks below main on small screens due to flex-col on container */}
-      <aside className="w-full lg:w-1/5 bg-indigo-50 p-6 flex flex-col gap-6">
+      <aside className="w-full lg:w-1/3 p-6 flex flex-col gap-6">
         <div>
           <h4 className="font-semibold mb-2">Links</h4>
           <div className="flex flex-col gap-2">

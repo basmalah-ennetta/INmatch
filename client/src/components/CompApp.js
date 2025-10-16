@@ -25,8 +25,8 @@ export default function CompApp({ ping, setPing }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f7ff] text-gray-800 flex flex-col lg:flex-row">
-      <main className="flex-1 p-10 space-y-8 lg:ml-[20%] lg:overflow-y-auto lg:max-h-screen scrollbar-hide">
+    <div className="min-h-screen bg-[#f5f7ff] text-gray-800 flex flex-col">
+      <main className="flex-1 p-10 space-y-8 lg:overflow-y-auto lg:max-h-screen">
         <div className="bg-white rounded-2xl shadow-md p-6">
           <h2 className="text-xl font-semibold text-indigo-800 mb-4 border-b pb-3 text-center">
             Applications Received

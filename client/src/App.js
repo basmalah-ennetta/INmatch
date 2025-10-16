@@ -9,6 +9,7 @@ import { getAllOffers } from "../src/redux/offerSlice";
 
 import "./App.css";
 import { Routes, Route } from "react-router-dom";
+import Navbarr from "./components/Navbarr";
 import Login from "./components/login";
 import Signup from "./components/signup";
 import About from "./components/About";
@@ -32,9 +33,10 @@ function App() {
 
   return (
     <div className="App">
+      <Navbarr />
       <Routes>
         {/* Default route */}
-        <Route path="/login" element={<Login />} />
+        <Route path="/" element={<Login />} />
         {/* Signup page */}
         <Route path="/signup" element={<Signup />} />
         {/* About page */}
